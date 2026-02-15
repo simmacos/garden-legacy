@@ -1,12 +1,12 @@
 import type { BrokerOptions } from "moleculer";
 
 /**
- * Configurazione del Broker Moleculer per il progetto "Scintilla".
+ * Configurazione del Broker Moleculer per il progetto "garden-legacy".
  * Versione minimale per sviluppo locale.
  */
 const brokerConfig: BrokerOptions = {
     namespace: "scintilla",
-    nodeID: `scintilla-node-${process.pid}`,
+    nodeID: `garden-node-${process.pid}`,
     logger: true,
     logLevel: "info",
     transporter: "TCP",
