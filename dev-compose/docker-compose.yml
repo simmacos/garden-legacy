@@ -1,0 +1,25 @@
+services:
+  # Il database
+  db:
+    image: mariadb:10
+    container_name: garden-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword  # Password per l'utente root (cambiala!)
+      MYSQL_DATABASE: garden             # Nome del DB da creare all'avvio
+      MYSQL_USER: simmaco                # Il tuo utente applicativo
+      MYSQL_PASSWORD: simmacopass    # La password per simmaco
+    ports:
+      - "3306:3306"                      # Espone la porta all'host (utile per MyCLI)
+    volumes:
+      - garden_data:/var/lib/mysql       # Persistenza dei dati
+
+  # (Opzionale) Interfaccia web per gestire il DB
+  adminer:
+    image: adminer
+    restart: always
+    ports:
+      - "8080:8080"
+
+volumes:
+  garden_data:
