@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auth plz</title>
+    <link rel="icon" type="image/svg+xml" href="../img/lock.svg">
+
+    <style>
+        body {
+            background-color: burlywood;
+            margin: 0;
+        }
+
+        .contenitore-centrale {
+            display: flex;
+            flex-direction: row;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .bottoncino {
+            background-color: rgb(237, 184, 184);
+            padding: 0.68rem 0.25rem;
+            text-align: center;
+            text-decoration: none;
+            font-size: 14px;
+            cursor: pointer;
+            border-radius: 1px;
+            margin-left: 0.2rem;
+        }
+
+        .user-input {
+            margin-bottom: 1px;
+        }
+
+        .lock-img {
+            margin-top: 0.25rem;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="contenitore-centrale">
+        <div class="lock-img">
+            <img src="../img/lock.svg" alt="lock image" width="45">
+        </div>
+        <div class="forms">
+            <form id="loginForm" style="display: flex; align-items: center;">
+
+                <div class="colonna-input">
+                    <div class="user-input">
+                        <input type="text" name="user" placeholder="user">
+                    </div>
+                    <div>
+                        <input type="password" name="pass" placeholder="password">
+                    </div>
+                </div>
+
+                <button class="bottoncino" type="submit">Send</button>
+
+            </form>
+
+            <script>
+                document.getElementById('loginForm').addEventListener('submit', async function (event) {
+                    // 1. FERMA IL BROWSER! Non ricaricare la pagina!
+                    event.preventDefault();
+
+                    // 2. Raccogli i dati dagli input
+                    const formData = new FormData(event.target);
+                    const data = Object.fromEntries(formData.entries()); // { user: "...", pass: "..." }
+                    
+                    try {
+                        console.log(data)
+                        // 3. Invia i dati al tuo endpoint API corretto (/api/auth/login)
+                        const response = await fetch('/api/auth/login', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify(data)
+                        });
+
+                        if (response.ok) {
+                            // 4. Se login OK -> Vai alla dashboard!
+                            // (Qui assumeremo che il cookie sia stato settato automaticamente dal server)
+                            window.location.href = '../dashboard.html'; // O dove vuoi andare
+                        } else {
+                            alert("Credenziali sbagliate!");
+                        }
+                    } catch (error) {
+                        console.error("Errore di rete:", error);
+                    }
+                });
+            </script>
+        </div>
+    </div>
+
+</body>
+
+</html>

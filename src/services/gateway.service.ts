@@ -2,7 +2,7 @@
 import { Service, ServiceBroker, ServiceSchema } from "moleculer";
 import ApiGateway from "moleculer-web";
 import path from "path";
-
+import cookie from "cookie";
 export default class WebUIService extends Service {
 
     public constructor(broker: ServiceBroker) {
@@ -13,23 +13,19 @@ export default class WebUIService extends Service {
             mixins: [ApiGateway],
             methods: {
                 async authenticate(ctx, route, req) {
-                    let auth = req.headers["authorization"];
+                    // Leggiamo i cookie dalla richiesta
+                    const cookies = cookie.parse(req.headers.cookie || "");
+                    const token = cookies.auth_token; // Assumiamo che il cookie si chiami 'auth_token'
 
-                    if (auth && auth.startsWith("Bearer ")) {
-                        let token = auth.slice(7);
-
-                        if (token === "questo-è-il-tuo-pass-segreto-123") {
-
-                            // Questo oggetto finirà in ctx.meta.user nelle action successive
-                            return {
-                                id: 1,
-                                username: "simmaco",
-                                role: "admin"
-                            };
-                        }
+                    if (token === "questo-è-il-tuo-pass-segreto-123") {
+                        return {
+                            id: 1,
+                            username: "simmaco",
+                            role: "admin"
+                        };
                     }
 
-                    throw new ApiGateway.Errors.UnAuthorizedError(ApiGateway.Errors.ERR_INVALID_TOKEN, "non autorizzato?????");
+                    throw new ApiGateway.Errors.UnAuthorizedError(ApiGateway.Errors.ERR_INVALID_TOKEN, "Login richiesto");
                 }
             },
 
@@ -53,11 +49,11 @@ export default class WebUIService extends Service {
                     // 2. ROTTA API PUBBLICA (Per il Login)
                     {
                         path: "/api/auth",
-
                         authentication: false,
                         aliases: {
-                            "POST /login": "auth.login"
+                            "POST /login": "plants.login",
                         }
+
                     },
 
                     // 3. ROTTA STATICA (Per l'HTML/JS/CSS)
