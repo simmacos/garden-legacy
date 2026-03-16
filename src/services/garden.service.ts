@@ -15,29 +15,16 @@ export default class TestDashboardService extends Service {
             actions: {
                 // auth.service.ts (o scintilla.service.ts)
                 login: {
-                    params: { user: "string", pass: "string" }, // Nota: i nomi devono matchare quelli dell'HTML/JS
+                    params: { user: "string", pass: "string" },
                     async handler(ctx: Context<any>) {
                         const { user, pass } = ctx.params;
 
-                        if (user === "simmaco" && pass === "segreto") {
+                        // DOBBIAMO MANDARE RICHIESTA A CON USER E PASS A AUTH E LUI CI RISPONDE O SUCCESS O FAIL
+                        // se true restituisci cookies e return true
+                        // se false ritorna false
 
-                            // Invece di chiamare una funzione su un oggetto che non esiste...
-                            // ...scriviamo i dati in un oggetto meta speciale!
+                        return await broker.call("auth.login", {user, pass});
 
-                            (ctx.meta as any).$responseHeaders = {
-                                "Set-Cookie": [
-                                    `auth_token=questo-è-il-tuo-pass-segreto-123; HttpOnly; Path=/; SameSite=Lax; Max-Age=86400`
-                                ],
-                                // Puoi aggiungere altri header se vuoi
-                                "X-Login-Status": "Success"
-                            };
-
-                            // Se vuoi cambiare lo status code (es. 201 Created)
-                            (ctx.meta as any).$statusCode = 200;
-
-                            return { success: true };
-                        }
-                        throw new Error("Credenziali errate");
                     }
                 }
 

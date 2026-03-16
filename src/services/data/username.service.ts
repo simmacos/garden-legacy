@@ -1,13 +1,15 @@
 import { ServiceBroker, Context } from "moleculer";
-import DataService from "./data.service";
+import DataService from "./data.base";
 import UserModel from "../../models/user.model"; // modello
 
 export default class UsersService extends DataService {
     public constructor(broker: ServiceBroker) {
         super(broker);
 
+        const baseSchema = this.getBaseSchema();
         this.parseServiceSchema({
             name: "users",
+            ...baseSchema,
             
             model: UserModel,
 
