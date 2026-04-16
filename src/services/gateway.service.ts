@@ -13,19 +13,19 @@ export default class WebUIService extends Service {
             mixins: [ApiGateway],
             methods: {
                 async authenticate(ctx, route, req) {
-                    // Leggiamo i cookie dalla richiesta
                     const cookies = cookie.parse(req.headers.cookie || "");
-                    const token = cookies.auth_token; // Assumiamo che il cookie si chiami 'auth_token'
+                    const token = cookies.auth_token;
 
-                    if (token === "questo-è-il-tuo-pass-segreto-123") {
-                        return {
-                            id: 1,
-                            username: "simmaco",
-                            role: "admin"
-                        };
+                    if (!token) {
+                        throw new ApiGateway.Errors.UnAuthorizedError(ApiGateway.Errors.ERR_INVALID_TOKEN, "Login required");
                     }
 
-                    throw new ApiGateway.Errors.UnAuthorizedError(ApiGateway.Errors.ERR_INVALID_TOKEN, "Login richiesto");
+                    const user = await ctx.call("auth.resolveToken", { token });
+                    if (!user) {
+                        throw new ApiGateway.Errors.UnAuthorizedError(ApiGateway.Errors.ERR_INVALID_TOKEN, "Token not valid!");
+                    }
+
+                    return user;
                 }
             },
 

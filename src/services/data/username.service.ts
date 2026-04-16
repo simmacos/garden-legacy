@@ -15,7 +15,7 @@ export default class UsersService extends DataService {
 
             settings: {
                 // Scegliamo quali campi mostrare di default quando facciamo una "get" o "find"
-                fields: ["id", "username", "isActive", "createdAt"],
+                fields: ["id", "username", "password", "isActive", "createdAt"],
                 
                 // Valida i dati in ingresso prima di salvare
                 entityValidator: {

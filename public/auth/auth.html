@@ -64,6 +64,11 @@
             </form>
 
             <script>
+                (async () => {
+                    const res = await fetch('/api/plants', { method: 'GET' });
+                    if (res.ok) window.location.href = '../dashboard.html';
+                })();
+
                 document.getElementById('loginForm').addEventListener('submit', async function (event) {
                     // 1. FERMA IL BROWSER! Non ricaricare la pagina!
                     event.preventDefault();
