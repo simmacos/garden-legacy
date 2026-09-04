@@ -65,7 +65,7 @@
 
             <script>
                 (async () => {
-                    const res = await fetch('/api/plants', { method: 'GET' });
+                    const res = await fetch('/api/me', { method: 'GET' });
                     if (res.ok) window.location.href = '../dashboard.html';
                 })();
 

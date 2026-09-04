@@ -49,6 +49,12 @@ export default class AuthService extends Service {
                     }
                 },
 
+                // Azione per dire al frontend "sei loggato?" (il Gateway ha già validato il token)
+                me: {
+                    async handler(ctx: Context<any>) {
+                        return { ok: true, user: (ctx.meta as any).user };
+                    }
+                },
                 // Azione per verificare il token (chiamata dal Gateway)
                 resolveToken: {
                     params: { token: "string" },

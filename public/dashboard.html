@@ -11,9 +11,10 @@
     </div>
 
     <script>
+        // Entri solo con token valido, niente altro.
         (async () => {
             try {
-                const res = await fetch('/api/plants', { method: 'GET' });
+                const res = await fetch('/api/me', { method: 'GET' });
                 if (res.ok) {
                     document.getElementById('app').style.display = 'block';
                 } else {

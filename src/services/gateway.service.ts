@@ -2,7 +2,8 @@
 import { Service, ServiceBroker, ServiceSchema } from "moleculer";
 import ApiGateway from "moleculer-web";
 import path from "path";
-import cookie from "cookie";
+// "cookie" è CommonJS senza default export: si importa la funzione nominata
+import { parse as parseCookie } from "cookie";
 export default class WebUIService extends Service {
 
     public constructor(broker: ServiceBroker) {
@@ -13,7 +14,7 @@ export default class WebUIService extends Service {
             mixins: [ApiGateway],
             methods: {
                 async authenticate(ctx, route, req) {
-                    const cookies = cookie.parse(req.headers.cookie || "");
+                    const cookies = parseCookie(req.headers.cookie || "");
                     const token = cookies.auth_token;
 
                     if (!token) {
@@ -42,16 +43,19 @@ export default class WebUIService extends Service {
 
                         aliases: {
                             "GET /plants": "plants.list",
-                            "POST /plant": "plant.create"
+                            "POST /plant": "plant.create",
+                            "GET /me": "auth.me"
                         }
                     },
 
                     // 2. ROTTA API PUBBLICA (Per il Login)
+                    // Chiamiamo auth.login DIRETTAMENTE (senza passare da plants.login):
+                    // solo così il Set-Cookie scritto nel ctx arriva al browser.
                     {
                         path: "/api/auth",
                         authentication: false,
                         aliases: {
-                            "POST /login": "plants.login",
+                            "POST /login": "auth.login",
                         }
 
                     },
