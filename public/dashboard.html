@@ -1,1 +1,28 @@
-ciao autenticato
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard</title>
+</head>
+<body>
+    <div id="app" style="display: none;">
+        ciao autenticato
+    </div>
+
+    <script>
+        (async () => {
+            try {
+                const res = await fetch('/api/plants', { method: 'GET' });
+                if (res.ok) {
+                    document.getElementById('app').style.display = 'block';
+                } else {
+                    window.location.href = '/auth/auth.html';
+                }
+            } catch (e) {
+                window.location.href = '/auth/auth.html';
+            }
+        })();
+    </script>
+</body>
+</html>

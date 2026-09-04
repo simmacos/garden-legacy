@@ -48,14 +48,14 @@
             <img src="../img/lock.svg" alt="lock image" width="45">
         </div>
         <div class="forms">
-            <form id="loginForm" style="display: flex; align-items: center;">
+            <form id="loginForm" method="post" action="/api/auth/login" style="display: flex; align-items: center;">
 
                 <div class="colonna-input">
                     <div class="user-input">
-                        <input type="text" name="user" placeholder="user">
+                        <input type="text" name="user" placeholder="user" autocomplete="username" required>
                     </div>
                     <div>
-                        <input type="password" name="pass" placeholder="password">
+                        <input type="password" name="pass" placeholder="password" autocomplete="current-password" required>
                     </div>
                 </div>
 
@@ -89,7 +89,20 @@
                         });
 
                         if (response.ok) {
-                            // 4. Se login OK -> Vai alla dashboard!
+                            // 4. Se login OK -> salva credenziali nel password manager
+                            // (necessario perché usiamo fetch e non un submit nativo)
+                            try {
+                                if (window.PasswordCredential) {
+                                    const cred = new PasswordCredential({
+                                        id: String(data.user || ""),
+                                        password: String(data.pass || "")
+                                    });
+                                    await navigator.credentials.store(cred);
+                                }
+                            } catch (e) {
+                                console.warn("Password manager non disponibile:", e);
+                            }
+                            // 5. Vai alla dashboard!
                             // (Qui assumeremo che il cookie sia stato settato automaticamente dal server)
                             window.location.href = '../dashboard.html'; // O dove vuoi andare
                         } else {

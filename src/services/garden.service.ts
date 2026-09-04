@@ -1,7 +1,7 @@
 import { Context, Service, ServiceBroker, ServiceSchema } from "moleculer";
 
 
-export default class TestDashboardService extends Service {
+export default class GardenService extends Service {
 
     public constructor(broker: ServiceBroker) {
         super(broker);
