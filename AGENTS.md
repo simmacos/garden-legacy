@@ -45,7 +45,7 @@ La foto potrà essere caricata da file o acquisita con la fotocamera del telefon
 - Per annaffiatura, concimazione e ciascun lavoro si può impostare facoltativamente una frequenza in giorni.
 - I promemoria sono avvisi visibili nella dashboard; non sono richieste notifiche esterne.
 - Una pianta può avere più lavori vari distinti. Ogni lavoro ha un **nome**, può essere modificato e può avere un intervallo in giorni facoltativo. Non è previsto un campo descrizione per il singolo lavoro.
-- Ogni lavoro conserva la data dell'ultima esecuzione, come annaffiatura e concimazione. La data viene precompilata con la data corrente quando si aggiunge l'attività, ma può essere impostata o modificata dall'utente.
+- Ogni lavoro conserva la data dell'ultima esecuzione, come annaffiatura e concimazione. La data resta vuota finché l'attività non viene registrata per la prima volta; in seguito può essere aggiornata dall'utente.
 - Segnare un lavoro come eseguito aggiorna la sua data dell'ultima esecuzione; il promemoria corrente scompare e il prossimo si calcola da quella data usando la frequenza configurata.
 
 ## Stato attuale del codice
@@ -70,7 +70,7 @@ Questa sezione fotografa lo stato visto durante il brainstorming e va aggiornata
 - Le frequenze sono numeri interi di giorni e sono facoltative, separatamente per annaffiatura, concimazione e ciascun lavoro.
 - Il promemoria si mostra il giorno della scadenza. In dashboard l'ordine è: promemoria scaduti (più vecchi prima), promemoria in scadenza oggi, poi quelli futuri più vicini.
 - Se non è stata ancora inserita una data dell'ultima esecuzione, non si mostra alcun promemoria per quell'attività.
-- La data dell'ultima esecuzione è precompilata con la data corrente quando si aggiunge l'attività; si può inserire o correggere una data diversa.
+- La data dell'ultima esecuzione resta vuota fino alla prima registrazione dell'attività; in quel momento viene impostata alla data corrente, modificabile dall'utente.
 - Quando si registra l'esecuzione (per esempio annaffiatura rapida o completamento di un lavoro), il promemoria attuale scompare; se esiste una frequenza, il successivo viene calcolato dalla nuova data.
 - Per annaffiatura e concimazione si conserva solo l'ultima data, senza storico. Per i lavori si conserva l'ultima data per ciascuna attività.
 - Non sono previste notifiche esterne: gli avvisi appaiono nella dashboard.
@@ -82,4 +82,3 @@ Sono previsti più account e i dati devono essere isolati per utente. Per ora la
 ## Questioni ancora aperte
 
 - Come si creano gli account mentre la registrazione pubblica è disattivata?
-- La data dell'ultima attività deve essere precompilata con oggi anche quando si crea una pianta, oppure solo quando si aggiunge per la prima volta una singola attività? La data resta comunque modificabile.
