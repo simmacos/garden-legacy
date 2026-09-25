@@ -10,6 +10,7 @@ export default class SessionsService extends DataService {
         this.parseServiceSchema({
             name: "sessions",
             ...baseSchema,
+            
             model: sessionsModel,
             actions: {
                 create: {
