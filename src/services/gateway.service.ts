@@ -41,10 +41,31 @@ export default class WebUIService extends Service {
                         // Qui attiviamo il controllo!
                         authentication: true,
 
+                        // Con degli alias la route è "restrict": solo questi endpoint sono esposti,
+                        // non le azioni grezze di moleculer-db (es. users.find).
                         aliases: {
+                            "GET /me": "auth.me",
+
+                            "GET /categories": "categories.list",
+                            "POST /categories": "categories.create",
+                            "PUT /categories/:id": "categories.update",
+                            "DELETE /categories/:id": "categories.remove",
+
                             "GET /plants": "plants.list",
-                            "POST /plant": "plant.create",
-                            "GET /me": "auth.me"
+                            "POST /plants": "plants.create",
+                            "GET /plants/:id": "plants.get",
+                            "PUT /plants/:id": "plants.update",
+                            "DELETE /plants/:id": "plants.remove",
+                            "POST /plants/:id/water": "plants.water",
+                            "POST /plants/:id/fertilize": "plants.fertilize",
+
+                            "GET /plants/:plantId/tasks": "plantTasks.list",
+                            "POST /plants/:plantId/tasks": "plantTasks.create",
+                            "PUT /tasks/:id": "plantTasks.update",
+                            "DELETE /tasks/:id": "plantTasks.remove",
+                            "POST /tasks/:id/done": "plantTasks.done",
+
+                            "GET /reminders": "reminders.list"
                         }
                     },
 

@@ -1,4 +1,4 @@
-import { Context, Service, ServiceBroker } from "moleculer";
+import { Context, Errors, Service, ServiceBroker } from "moleculer";
 import crypto from "crypto"; // Per generare il token random
 
 export default class AuthService extends Service {
@@ -17,8 +17,9 @@ export default class AuthService extends Service {
                         const users = await ctx.call("users.find", { query: { username: user } }) as any[];
                         const foundUser = users[0];
 
-                        if (!foundUser || foundUser.password !== pass) {
-                            throw new Error("Credenziali errate");
+                        // Stesso errore per utente inesistente, disattivato o password errata
+                        if (!foundUser || !foundUser.isActive || foundUser.password !== pass) {
+                            throw new Errors.MoleculerClientError("Invalid credentials", 401, "INVALID_CREDENTIALS");
                         }
 
                         // 2. Generiamo un token sicuro
@@ -52,7 +53,8 @@ export default class AuthService extends Service {
                 // Azione per dire al frontend "sei loggato?" (il Gateway ha già validato il token)
                 me: {
                     async handler(ctx: Context<any>) {
-                        return { ok: true, user: (ctx.meta as any).user };
+                        const { id, username } = (ctx.meta as any).user;
+                        return { ok: true, user: { id, username } };
                     }
                 },
                 // Azione per verificare il token (chiamata dal Gateway)
@@ -68,8 +70,14 @@ export default class AuthService extends Service {
                             return null;
                         }
 
-                        // 3. Se valido, recuperiamo l'utente
-                        return ctx.call("users.get", { id: session.userId });
+                        // 3. Se valido, recuperiamo l'utente (disattivato -> non autenticato)
+                        const user = await ctx.call("users.get", { id: session.userId }) as any;
+                        if (!user || !user.isActive) {
+                            return null;
+                        }
+
+                        // Solo i campi pubblici: la password non deve finire in ctx.meta.user
+                        return { id: user.id, username: user.username };
                     }
                 }
             }

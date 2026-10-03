@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plant · Garden Legacy</title>
+    <link rel="icon" type="image/svg+xml" href="/img/lock.svg">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/style.css">
+    <script src="/js/theme.js"></script>
+</head>
+<body>
+    <header class="topbar center">
+        <div class="topbar-title center">
+            <a class="back" href="/dashboard.html">← Plants</a>
+            <a class="brand brand-sm desktop-only" href="/dashboard.html">Garden Legacy</a>
+        </div>
+        <div class="topbar-actions">
+            <button class="btn btn-mono" id="theme-toggle" type="button"></button>
+            <button class="btn btn-accent btn-hard desktop-only js-save" type="button" hidden>Save changes</button>
+        </div>
+    </header>
+
+    <div class="alert" id="alert" role="alert" hidden></div>
+
+    <div class="not-found" id="not-found" hidden>
+        <div class="count">[404]</div>
+        <h1>Plant not found</h1>
+        <a class="btn btn-accent btn-hard" href="/dashboard.html">Back to plants</a>
+    </div>
+
+    <main class="plant-page" id="plant-page" hidden>
+        <section class="plant-photo" aria-label="Photo">
+            <!-- TODO(photo): pulsanti "Take photo" (capture="environment") e "Upload file" + anteprima quando ci sarà il servizio foto. -->
+            <div class="photo-box">
+                <span class="hint">NO PHOTO</span>
+                <span class="initial" id="photo-initial">P</span>
+            </div>
+        </section>
+
+        <section class="plant-form">
+            <div class="field">
+                <label for="name">Name *</label>
+                <input class="input input-name" id="name" type="text" maxlength="120" autocomplete="off" required>
+                <div class="field-error" id="name-error" hidden>◆ NAME IS REQUIRED</div>
+            </div>
+
+            <div class="field">
+                <label for="category">Category</label>
+                <div class="row">
+                    <select class="input" id="category"></select>
+                    <button class="btn" id="manage-cats" type="button">Manage</button>
+                </div>
+                <div class="inline-form" id="new-cat" hidden>
+                    <div class="row">
+                        <input class="input" id="new-cat-name" type="text" maxlength="80" placeholder="New category" aria-label="New category name" autocomplete="off">
+                        <button class="btn btn-accent" id="new-cat-create" type="button">Create</button>
+                        <button class="btn-text" id="new-cat-cancel" type="button">Cancel</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="field">
+                <label for="description">Description</label>
+                <textarea class="input" id="description" rows="3"></textarea>
+            </div>
+
+            <div class="field">
+                <label for="notes">Notes</label>
+                <textarea class="input notes" id="notes" rows="3"></textarea>
+            </div>
+
+            <section aria-labelledby="care-title">
+                <div class="section-head"><h2 class="h-section" id="care-title">Care</h2></div>
+                <div id="care"></div>
+            </section>
+
+            <section id="tasks-section" aria-labelledby="tasks-title" hidden>
+                <div class="section-head">
+                    <h2 class="h-section" id="tasks-title">Tasks</h2>
+                    <span class="count" id="tasks-count"></span>
+                </div>
+                <div id="tasks-list"></div>
+                <div id="task-add"></div>
+            </section>
+
+            <p class="note" id="tasks-hint" hidden>Tasks can be added after the first save.</p>
+
+            <div id="delete-box" hidden>
+                <button class="btn btn-danger" id="delete-plant" type="button">Delete plant</button>
+            </div>
+        </section>
+    </main>
+
+    <div class="save-bar" id="save-bar" hidden>
+        <button class="btn btn-accent js-save" type="button">Save changes</button>
+    </div>
+
+    <script type="module" src="/js/plant.js"></script>
+</body>
+</html>

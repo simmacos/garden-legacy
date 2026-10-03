@@ -26,6 +26,14 @@ export default class UsersService extends DataService {
             
             // Azioni custom (oltre alle operazioni CRUD base)
             actions: {
+                // Niente cache su get/find (usate da login e resolveToken): gli account si
+                // modificano a mano nel DB e deactivate scrive via adapter, entrambi senza
+                // invalidare la cache di moleculer-db -> utenti disattivati/password vecchie.
+                get: { cache: false },
+                find: { cache: false },
+                list: { cache: false },
+                count: { cache: false },
+
                 // Esempio: cambia lo stato di un utente per disabilitarlo
                 deactivate: {
                     params: {

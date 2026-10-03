@@ -13,6 +13,13 @@ export default class SessionsService extends DataService {
             
             model: sessionsModel,
             actions: {
+                // Niente cache (resolveToken usa find): create e cleanOld scrivono via adapter
+                // senza invalidarla, quindi una sessione cancellata resterebbe valida.
+                get: { cache: false },
+                find: { cache: false },
+                list: { cache: false },
+                count: { cache: false },
+
                 create: {
                     params: {
                         token: "string",
@@ -24,7 +31,7 @@ export default class SessionsService extends DataService {
                         const expiresAt = rawExpiresAt instanceof Date ? rawExpiresAt : new Date(rawExpiresAt);
 
                         if (Number.isNaN(expiresAt.getTime())) {
-                            throw new Error("expiresAt non valido");
+                            throw new Error("expiresAt is not valid");
                         }
 
                         return this.adapter.insert({

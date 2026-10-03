@@ -4,7 +4,11 @@ Questo file conserva la visione del prodotto e le decisioni emerse nel brainstor
 
 ## Prodotto
 
-Applicazione web per la gestione personale di piante e orto, con interfaccia ispirata al verde e utilizzabile comodamente da desktop e smartphone. L'app può essere usata da più account: i dati di ciascun account devono appartenere al relativo utente.
+Applicazione web per la gestione personale di piante e orto, utilizzabile comodamente da desktop e smartphone. L'app può essere usata da più account: i dati di ciascun account devono appartenere al relativo utente.
+
+**Lingua:** l'interfaccia e i messaggi di errore delle API sono in **inglese**. Documentazione e commenti nel codice restano in italiano.
+
+**Stile:** direzione "Field Notebook" (quaderno da campo): bordi netti da 2px, nessun raggio, ombra rigida, Archivo condensato + IBM Plex Mono, accento giallo, rosso per lo scaduto, tema chiaro/scuro. Token e componenti in `public/css/style.css`. Il design di riferimento è in `Garden Legacy design system/` (ignorata da git, solo consultazione).
 
 ## Flusso principale
 
@@ -29,7 +33,7 @@ Ogni pianta appartiene a un solo account e può avere una sola categoria, oppure
 
 L'annaffiatura rapida dalla dashboard registra/aggiorna la data dell'ultima annaffiatura. Per annaffiatura e concimazione si conserva solo la data più recente, senza uno storico degli eventi.
 
-La foto potrà essere caricata da file o acquisita con la fotocamera del telefono. Si vuole ridimensionarla/comprimerla e salvarla nel database SQL. La dimensione/formato precisi non sono ancora stati decisi e non sono necessari per la prima progettazione.
+La foto potrà essere caricata da file o acquisita con la fotocamera del telefono. Si vuole ridimensionarla/comprimerla **lato server** e salvarla nel database SQL. La dimensione/formato precisi non sono ancora stati decisi. Foto e UI sono rimandate a dopo i servizi.
 
 ## Categorie
 
@@ -50,7 +54,21 @@ La foto potrà essere caricata da file o acquisita con la fotocamera del telefon
 
 ## Stato attuale del codice
 
-La base esistente è Node.js/TypeScript con Moleculer, Sequelize e MariaDB. Sono presenti autenticazione con login e sessioni tramite cookie, una dashboard protetta e modelli/servizi per utenti e sessioni. Le funzionalità di dominio per piante, categorie, attività e promemoria devono ancora essere progettate e implementate. Le API/azioni relative alle piante presenti nel gateway non corrispondono ancora a un servizio completo. Il README descrive ancora in parte il template iniziale.
+La base è Node.js/TypeScript con Moleculer, Sequelize e MariaDB. Sono implementati:
+
+- autenticazione con login e sessioni tramite cookie (`auth`, `users`, `sessions`);
+- servizi dati `categories`, `plants`, `plantTasks` (in `src/services/data/`) e `reminders`, tutti filtrati per `ctx.meta.user.id`: una risorsa di un altro utente risponde 404;
+- API REST in `/api` (alias nel gateway): `/categories`, `/plants` (+ `/water`, `/fertilize`), `/plants/:plantId/tasks`, `/tasks/:id` (+ `/done`), `/reminders`;
+- logica condivisa in `src/lib/` (date, validazione, calcolo promemoria).
+
+Le azioni dei servizi dati sostituiscono quelle di moleculer-db con `cache: false` (la cache di moleculer-db non è per utente). Le route del gateway hanno gli alias, quindi espongono solo quelli (policy `restrict`).
+
+Frontend (HTML/CSS/JS semplici in `public/`, moduli ES, nessun build):
+
+- `auth/auth.html` login; `dashboard.html` promemoria + piante per categoria + annaffiatura rapida; `plant.html` scheda pianta (senza `?id=` crea una pianta; con `?id=N` visualizza/modifica, cura, attività, categorie, eliminazione);
+- `js/lib.js` (API, DOM senza `innerHTML`, date, chip di stato, tema), `js/dashboard.js`, `js/plant.js`, `js/theme.js` (tema prima del paint).
+
+Mancano: modello/servizio foto (`plantPhoto` è definito ma non collegato; nella UI restano segnaposto e `TODO(photo)`), logout, README aggiornato. Il README descrive ancora in parte il template iniziale.
 
 Questa sezione fotografa lo stato visto durante il brainstorming e va aggiornata quando il codice cambia.
 
@@ -62,7 +80,7 @@ Questa sezione fotografa lo stato visto durante il brainstorming e va aggiornata
 4. Aggiungere attività nominate per pianta, con modifica e frequenza facoltativa.
 5. Calcolare e mostrare in dashboard le scadenze di annaffiatura, concimazione e attività.
 6. Aggiungere il caricamento, la visualizzazione e la sostituzione della foto, verificando l'esperienza da smartphone.
-7. Rivedere la gestione delle password: l'autenticazione resta semplice, ma le password non devono essere conservate in chiaro. Per ora la registrazione pubblica degli account è disattivata; la modalità di creazione degli account resta da definire.
+7. ~~Hash delle password~~: decisione presa, non serve. Il progetto è interno, le password restano in chiaro e la registrazione pubblica è disattivata. Rivalutare solo se l'app esce dall'uso interno.
 8. Aggiornare il README con istruzioni e funzionalità reali.
 
 ## Regole concordate per i promemoria
@@ -77,8 +95,9 @@ Questa sezione fotografa lo stato visto durante il brainstorming e va aggiornata
 
 ## Account
 
-Sono previsti più account e i dati devono essere isolati per utente. Per ora la registrazione pubblica non è aperta; resta da scegliere come creare gli account (per esempio manualmente o tramite un'azione amministrativa).
+Sono previsti più account e i dati devono essere isolati per utente. La registrazione pubblica non è aperta e, essendo un progetto interno, gli account si creano a mano nel database (password in chiaro, vedi punto 7).
 
 ## Questioni ancora aperte
 
-- Come si creano gli account mentre la registrazione pubblica è disattivata?
+- Formato/dimensione finale della foto e libreria di resize lato server.
+- Effetto grafico sulle foto (il design ne simula uno pixelato lato server): da decidere insieme al servizio foto.
