@@ -9,6 +9,7 @@ A small self-hosted web app to keep track of your plants and garden: what to wat
 - **One photo per plant**, taken with the phone camera or uploaded. It is processed on the server into a vivid pixel-art image (a few KB) and stored in the database.
 - **Multi-user**: each account only sees its own data.
 - Responsive UI in plain HTML/CSS/JS, no frontend build step.
+- **Installable as an app** (PWA): on Android, Chrome → menu → *Install app* gives a home-screen icon and a full-screen window. Static files are cached for offline opening; API data never is.
 
 ## Tech stack
 
@@ -50,6 +51,7 @@ Environment variables (see `.env.example`; a `.env` file is loaded at startup, r
 | `npm run dev` | Run from `src/` with ts-node |
 | `npm run typecheck` | Type-check only |
 | `npm run build` | Compile `src/` into `dist/` |
+| `npm run icons` | Regenerate the PWA icons in `public/img/` from `favicon.svg` |
 | `npm start` | Run the compiled app (`dist/index.js`) |
 
 ## API

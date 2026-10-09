@@ -20,7 +20,13 @@ export async function api(method, path, body) {
         options.body = JSON.stringify(body);
     }
 
-    const res = await fetch("/api" + path, options);
+    let res;
+    try {
+        res = await fetch("/api" + path, options);
+    } catch {
+        // niente rete / server non raggiungibile (es. PWA aperta offline)
+        throw new ApiError(0, "Can't reach the server. Check your connection and try again.");
+    }
     const data = await res.json().catch(() => null);
 
     if (res.status === 401) {
@@ -176,6 +182,7 @@ export function initThemeToggle(button) {
         const next = current() === "dark" ? "light" : "dark";
         root.dataset.theme = next;
         try { localStorage.setItem("gl-theme", next); } catch (e) { /* solo preferenza */ }
+        document.querySelector('meta[name="theme-color"]')?.setAttribute("content", next === "dark" ? "#121210" : "#ece7dc");
         label();
     });
     label();

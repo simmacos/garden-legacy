@@ -18,7 +18,8 @@
     "dev": "ts-node src/index.ts",
     "typecheck": "tsc --noEmit",
     "build": "rm -rf dist && tsc",
-    "start": "node --enable-source-maps dist/index.js"
+    "start": "node --enable-source-maps dist/index.js",
+    "icons": "node scripts/make-icons.mjs"
   },
   "dependencies": {
     "@types/cookie": "^0.6.0",
