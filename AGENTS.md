@@ -79,7 +79,13 @@ Frontend (HTML/CSS/JS semplici in `public/`, moduli ES, nessun build):
 - `auth/auth.html` login; `dashboard.html` promemoria + piante per categoria + annaffiatura rapida; `plant.html` scheda pianta (senza `?id=` crea una pianta; con `?id=N` visualizza/modifica, cura, attività, categorie, eliminazione);
 - `js/lib.js` (API, DOM senza `innerHTML`, date, chip di stato, tema), `js/dashboard.js`, `js/plant.js`, `js/theme.js` (tema prima del paint).
 
-Mancano: frontend della foto (pulsanti "Take photo"/"Upload file", anteprima, foto nelle card; nella UI restano segnaposto e `TODO(photo)`), logout, README aggiornato. Il README descrive ancora in parte il template iniziale.
+Foto nella scheda pianta (`plant.html`, come la sezione 4c del design): box 4:5 con la foto (o segnaposto con iniziale), pulsanti "Take photo" (`capture="environment"`, solo mobile/touch) e "Upload photo" (sempre; su desktop è l'unico, a tutta larghezza). In modifica la foto si carica subito (la scheda ridimensiona prima le foto grandi a 2048px con `prepareImage` in `lib.js`); in creazione si vede un'anteprima locale e l'upload parte dopo il primo salvataggio (se fallisce, l'errore compare nella scheda della pianta appena creata).
+
+Foto nelle card della dashboard (come 4a/4b del design): area foto 150px su desktop; su mobile 120px con foto e 72px senza; senza foto iniziale grande e "+ ADD PHOTO". La dashboard legge `GET /photos` per costruire gli URL con versione.
+
+**Regola di lavoro per la UI:** misure, testi e comportamento si prendono dal file di design (`Garden Legacy design system/`, sezioni 4a/4b/4c). I due file coincidono su 4a/4b; su 4c vale `Garden Legacy.dc.html` (il più recente: "Take photo" solo mobile, secondo pulsante "Upload photo").
+
+Mancano: un'azione "rimuovi foto" nella UI (l'API `DELETE` esiste, il design non la prevede), logout, README aggiornato. Il README descrive ancora in parte il template iniziale.
 
 Questa sezione fotografa lo stato visto durante il brainstorming e va aggiornata quando il codice cambia.
 

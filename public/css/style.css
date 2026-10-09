@@ -138,6 +138,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible { outline-offs
 .btn-danger { border-color: var(--late); color: var(--late); background: transparent; }
 .btn-danger-solid { border-color: var(--late); background: var(--late); color: var(--on-late); }
 .btn-mono { font: 600 13px var(--font-mono); min-height: 44px; padding: 0 14px; letter-spacing: 0; }
+.btn-mono.tall { min-height: 52px; } /* dashboard desktop (4a): stessa altezza di "+ Add plant" */
 .btn-lg { min-height: 56px; padding: 0 24px; font-size: 16px; letter-spacing: .05em; }
 
 .btn-text {
@@ -300,6 +301,8 @@ a.brand { text-decoration: none; }
     text-decoration: none;
 }
 
+.card-photo.has-photo { display: block; padding: 0; }
+.card-img { display: block; width: 100%; height: 100%; object-fit: cover; image-rendering: pixelated; }
 .card-photo .initial { font: 800 64px/1 var(--font-display); font-stretch: 72%; }
 .card-photo .hint { font: 600 11px/1 var(--font-mono); color: var(--ink-2); }
 
@@ -378,18 +381,58 @@ a.brand { text-decoration: none; }
 .plant-photo { flex: 1 1 320px; max-width: 100%; display: flex; flex-direction: column; gap: 10px; }
 
 .photo-box {
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
+    position: relative;
     aspect-ratio: 4 / 5;
-    padding: 16px;
-    background: var(--surface-2) repeating-linear-gradient(90deg, var(--ph) 0 2px, transparent 2px 8px);
+    overflow: hidden;
+    background: var(--surface-2);
     border: 2px solid var(--line);
     box-shadow: var(--hard);
 }
 
-.photo-box .hint { font: 600 11px/1 var(--font-mono); color: var(--ink-2); }
-.photo-box .initial { font: 800 96px/1 var(--font-display); font-stretch: 72%; }
+/* La foto salvata è una piccola griglia di pixel: va ingrandita senza sfumarla */
+.photo-img { display: block; width: 100%; height: 100%; object-fit: cover; image-rendering: pixelated; }
+/* Anteprima del file appena scelto (non ancora elaborato dal server) */
+.photo-img.raw { image-rendering: auto; }
+
+.photo-empty {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    width: 100%;
+    height: 100%;
+    padding: 16px;
+    background: repeating-linear-gradient(90deg, var(--ph) 0 2px, transparent 2px 8px);
+}
+
+.photo-empty .hint { font: 600 11px/1 var(--font-mono); color: var(--ink-2); }
+.photo-empty .initial { font: 800 96px/1 var(--font-display); font-stretch: 72%; }
+
+.photo-busy {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: color-mix(in srgb, var(--bg) 70%, transparent);
+    font: 600 13px var(--font-mono);
+    text-transform: uppercase;
+}
+
+.photo-actions { display: flex; gap: 10px; margin-top: 6px; }
+.photo-actions .btn { flex: 1; }
+
+/* "Take photo" solo su mobile (come nel design: data-only="m"). Il criterio è lo schermo stretto
+   o touch, così compare anche su tablet. Su desktop resta solo "Upload photo". */
+.photo-camera { display: none; }
+@media (max-width: 900px), (pointer: coarse) {
+    .photo-camera { display: inline-flex; }
+}
+
+/* Il <label> fa da pulsante; l'input vero è nascosto ma resta raggiungibile da tastiera */
+.photo-btn { position: relative; cursor: pointer; }
+.photo-btn input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.photo-btn:focus-within { outline: 3px solid var(--focus); outline-offset: 2px; }
+.photo-btn.is-disabled { opacity: .55; cursor: not-allowed; pointer-events: none; }
 
 .plant-form { flex: 1 1 440px; min-width: 0; display: flex; flex-direction: column; gap: 20px; }
 
@@ -524,6 +567,7 @@ dialog.dlg::backdrop { background: var(--backdrop); }
 .login-card .sub { margin: 0 0 22px; font: 500 13px var(--font-mono); color: var(--ink-2); text-transform: uppercase; }
 .login-card form { display: flex; flex-direction: column; gap: 16px; }
 .login-card .alert { margin: 0; }
+.login-theme { position: fixed; top: 12px; right: 12px; }
 
 /* ---------- Mobile ---------- */
 
@@ -549,7 +593,8 @@ dialog.dlg::backdrop { background: var(--backdrop); }
     .h-section { font-size: 22px; }
     .cards { grid-template-columns: 1fr; gap: 16px; }
     .card-cat { display: none; }
-    .card-photo { height: 72px; }
+    .card-photo { height: 72px; padding: 0 14px; }
+    .card-photo.has-photo { height: 120px; padding: 0; }
     .card-photo .initial { font-size: 36px; }
     .fab-bar { display: flex; }
     .empty-big { padding: 40px 20px; }

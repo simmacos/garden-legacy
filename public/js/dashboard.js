@@ -1,6 +1,9 @@
 import {
-    ago, api, chipEl, chipFromDays, el, shortDate, showError, clearError, todayISO, todayParts
+    ago, api, chipEl, chipFromDays, el, initThemeToggle, shortDate, showError, clearError, todayISO, todayParts
 } from "/js/lib.js";
+
+// Su mobile il pulsante è nascosto (come nel 4b); la scelta fatta altrove vale comunque.
+initThemeToggle(document.getElementById("theme-toggle"));
 
 const today = todayParts();
 document.getElementById("today-label").append(
@@ -11,6 +14,7 @@ document.getElementById("today-label").append(
 
 let plants = [];
 let reminders = [];
+let photoVersions = new Map(); // plantId -> updatedAt (ms): serve all'URL con versione della foto
 
 // ---------- Promemoria ----------
 
@@ -68,11 +72,13 @@ function plantCard(plant) {
     if (!wateredToday) button.addEventListener("click", () => water(plant, button));
 
     const href = `/plant.html?id=${plant.id}`;
+    const version = photoVersions.get(plant.id);
+    // Con foto: l'immagine riempie l'area. Senza: iniziale grande e "+ ADD PHOTO" (come nel design).
     return el("article", { class: "card" },
-        // TODO(photo): mostrare la foto della pianta al posto del segnaposto quando ci sarà il servizio foto.
-        el("a", { class: "card-photo", href, "aria-hidden": "true", tabindex: "-1" },
-            el("span", { class: "initial" }, plant.name.charAt(0).toUpperCase()),
-            el("span", { class: "hint" }, "No photo")
+        el("a", { class: `card-photo${version ? " has-photo" : ""}`, href, "aria-hidden": "true", tabindex: "-1" },
+            version
+                ? el("img", { class: "card-img", src: `/api/plants/${plant.id}/photo?v=${version}`, alt: "", loading: "lazy" })
+                : [el("span", { class: "initial" }, plant.name.charAt(0).toUpperCase()), el("span", { class: "hint" }, "+ ADD PHOTO")]
         ),
         el("div", { class: "card-body" },
             el("a", { class: "card-info", href },
@@ -137,7 +143,10 @@ function render() {
 
 async function load() {
     try {
-        [plants, reminders] = await Promise.all([api("GET", "/plants"), api("GET", "/reminders")]);
+        const [plantList, reminderList, photos] = await Promise.all([api("GET", "/plants"), api("GET", "/reminders"), api("GET", "/photos")]);
+        plants = plantList;
+        reminders = reminderList;
+        photoVersions = new Map(photos.map(p => [p.plantId, Date.parse(p.updatedAt)]));
         render();
         document.getElementById("content").hidden = false;
     } catch (err) {

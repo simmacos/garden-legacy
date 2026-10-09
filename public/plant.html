@@ -33,10 +33,17 @@
 
     <main class="plant-page" id="plant-page" hidden>
         <section class="plant-photo" aria-label="Photo">
-            <!-- TODO(photo): pulsanti "Take photo" (capture="environment") e "Upload file" + anteprima quando ci sarà il servizio foto. -->
-            <div class="photo-box">
-                <span class="hint">NO PHOTO</span>
-                <span class="initial" id="photo-initial">P</span>
+            <div class="photo-box" id="photo-box">
+                <img class="photo-img" id="photo-img" alt="" hidden>
+                <div class="photo-empty" id="photo-empty">
+                    <span class="hint">NO PHOTO</span>
+                    <span class="initial" id="photo-initial">P</span>
+                </div>
+                <div class="photo-busy" id="photo-busy" role="status" hidden>Processing…</div>
+            </div>
+            <div class="photo-actions">
+                <label class="btn photo-btn photo-camera">Take photo<input type="file" accept="image/*" capture="environment" id="photo-camera"></label>
+                <label class="btn photo-btn">Upload photo<input type="file" accept="image/*" id="photo-file"></label>
             </div>
         </section>
 

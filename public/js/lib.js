@@ -9,10 +9,13 @@ export class ApiError extends Error {
     }
 }
 
-/** Chiamata JSON a /api. Con 401 rimanda al login. */
+/** Chiamata a /api: JSON, oppure file grezzo se `body` è un Blob/File. Con 401 rimanda al login. */
 export async function api(method, path, body) {
     const options = { method, credentials: "same-origin" };
-    if (body !== undefined) {
+    if (body instanceof Blob) {
+        options.headers = { "Content-Type": body.type || "application/octet-stream" };
+        options.body = body;
+    } else if (body !== undefined) {
         options.headers = { "Content-Type": "application/json" };
         options.body = JSON.stringify(body);
     }
@@ -30,6 +33,35 @@ export async function api(method, path, body) {
         throw new ApiError(res.status, detail || data?.message || "Something went wrong");
     }
     return data;
+}
+
+// ---------- Immagini ----------
+
+export const MAX_PHOTO_BYTES = 12 * 1024 * 1024; // come il limite del server
+
+/**
+ * Prepara una foto per l'upload: le foto grandi del telefono vengono ridotte (lato lungo 2048px, JPEG)
+ * per caricare meno dati e restare sotto il limite del server. L'orientamento EXIF viene applicato.
+ * Se il browser non sa decodificare il file (es. HEIC) si invia l'originale e decide il server.
+ */
+export async function prepareImage(file, { maxSide = 2048, quality = 0.9, skipBelow = 1.5 * 1024 * 1024 } = {}) {
+    if (file.size <= skipBelow && /^image\/(jpeg|png|webp)$/.test(file.type)) return file;
+    try {
+        const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
+        const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+        canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+        const ctx = canvas.getContext("2d");
+        ctx.fillStyle = "#fff"; // trasparenze su bianco, come sul server
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+        bitmap.close?.();
+        const blob = await new Promise(resolve => canvas.toBlob(resolve, "image/jpeg", quality));
+        return blob && blob.size < file.size ? blob : file;
+    } catch {
+        return file;
+    }
 }
 
 // ---------- DOM ----------

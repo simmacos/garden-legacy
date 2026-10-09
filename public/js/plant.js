@@ -1,5 +1,5 @@
 import {
-    ago, api, chipEl, chipFor, clearError, el, initThemeToggle, shortDate, showError, todayISO
+    MAX_PHOTO_BYTES, ago, api, chipEl, chipFor, clearError, el, initThemeToggle, prepareImage, shortDate, showError, todayISO
 } from "/js/lib.js";
 
 const $ = id => document.getElementById(id);
@@ -14,6 +14,9 @@ let tasks = [];
 let editingTaskId = null;
 let addingTask = false;
 let lastCategory = "";     // valore del select prima di "+ New category…"
+let photoVersion = null;   // updatedAt (ms) della foto salvata: serve a costruire l'URL con versione
+let pendingPhoto = null;   // foto scelta in creazione: si carica dopo il primo salvataggio
+let pendingPhotoUrl = null;
 
 initThemeToggle($("theme-toggle"));
 
@@ -113,6 +116,76 @@ function updateInitial() {
     $("photo-initial").textContent = $("name").value.trim().charAt(0).toUpperCase() || "P";
 }
 
+// ---------- Foto ----------
+
+function renderPhoto() {
+    const img = $("photo-img");
+    let src = null;
+    if (pendingPhotoUrl) src = pendingPhotoUrl;
+    else if (photoVersion !== null) src = `/api/plants/${plant.id}/photo?v=${photoVersion}`;
+
+    img.classList.toggle("raw", Boolean(pendingPhotoUrl));
+    if (src) {
+        img.alt = `Photo of ${$("name").value.trim() || "plant"}`;
+        img.src = src;
+    } else {
+        img.removeAttribute("src");
+    }
+    img.hidden = !src;
+    $("photo-empty").hidden = Boolean(src);
+}
+
+// Se il browser non sa mostrare il file scelto (es. HEIC) si torna al segnaposto: l'upload funziona comunque.
+$("photo-img").addEventListener("error", () => {
+    $("photo-img").hidden = true;
+    $("photo-empty").hidden = false;
+});
+
+function setPhotoBusy(busy) {
+    $("photo-busy").hidden = !busy;
+    for (const input of [$("photo-camera"), $("photo-file")]) {
+        input.disabled = busy;
+        input.closest("label").classList.toggle("is-disabled", busy);
+    }
+}
+
+/** Prepara il file e lo invia (salva o sostituisce la foto della pianta). Restituisce la risposta del server. */
+async function uploadPhoto(plantId, file) {
+    const body = await prepareImage(file);
+    if (body.size > MAX_PHOTO_BYTES) throw new Error("Photo is too large (max 12 MB)");
+    return api("PUT", `/plants/${plantId}/photo`, body);
+}
+
+async function onPhotoChosen(input) {
+    const file = input.files?.[0];
+    input.value = ""; // permette di scegliere di nuovo lo stesso file
+    if (!file) return;
+    clearError();
+
+    if (isNew) {
+        // la pianta non esiste ancora: anteprima locale, upload dopo il primo salvataggio
+        if (pendingPhotoUrl) URL.revokeObjectURL(pendingPhotoUrl);
+        pendingPhoto = file;
+        pendingPhotoUrl = URL.createObjectURL(file);
+        renderPhoto();
+        return;
+    }
+
+    setPhotoBusy(true);
+    try {
+        const saved = await uploadPhoto(plant.id, file);
+        photoVersion = Date.parse(saved.updatedAt);
+        renderPhoto();
+    } catch (err) {
+        showError(err.message);
+    } finally {
+        setPhotoBusy(false);
+    }
+}
+
+$("photo-camera").addEventListener("change", () => onPhotoChosen($("photo-camera")));
+$("photo-file").addEventListener("change", () => onPhotoChosen($("photo-file")));
+
 function validateName() {
     const ok = $("name").value.trim() !== "";
     $("name-error").hidden = ok;
@@ -124,6 +197,21 @@ $("name").addEventListener("input", () => { updateInitial(); if (!$("name-error"
 $("name").addEventListener("blur", () => { if (!isNew || $("name").value !== "") validateName(); });
 
 // ---------- Salvataggio ----------
+
+/** Messaggio da mostrare alla prossima apertura di una scheda (sopravvive al redirect). */
+function flash(message) {
+    try { sessionStorage.setItem("gl-flash", message); } catch (e) { /* solo un avviso */ }
+}
+
+function showFlash() {
+    try {
+        const message = sessionStorage.getItem("gl-flash");
+        if (message) {
+            sessionStorage.removeItem("gl-flash");
+            showError(message);
+        }
+    } catch (e) { /* storage non disponibile */ }
+}
 
 const saveButtons = [...document.querySelectorAll(".js-save")];
 const saveLabel = () => (isNew ? "Create plant" : "Save changes");
@@ -143,6 +231,15 @@ async function save() {
     try {
         if (isNew) {
             const created = await api("POST", "/plants", readForm());
+            if (pendingPhoto) {
+                setSaveLabel("Uploading photo…", true);
+                try {
+                    await uploadPhoto(created.id, pendingPhoto);
+                } catch (err) {
+                    // la pianta esiste già: si apre la sua scheda e lì si mostra l'errore
+                    flash(`Plant saved, but the photo could not be uploaded: ${err.message}`);
+                }
+            }
             window.location.href = `/plant.html?id=${created.id}`;
             return;
         }
@@ -443,14 +540,16 @@ async function init() {
 
         const requests = [api("GET", "/categories"), api("GET", "/plants")];
         if (!isNew) {
-            requests.push(api("GET", `/plants/${rawId}`), api("GET", `/plants/${rawId}/tasks`));
+            requests.push(api("GET", `/plants/${rawId}`), api("GET", `/plants/${rawId}/tasks`), api("GET", "/photos"));
         }
-        const [cats, plants, one, taskList] = await Promise.all(requests);
+        const [cats, plants, one, taskList, photos] = await Promise.all(requests);
         categories = cats.map(c => ({ id: c.id, name: c.name }));
         allPlants = plants;
         if (!isNew) {
             plant = one;
             tasks = taskList;
+            const photo = photos.find(p => p.plantId === plant.id);
+            photoVersion = photo ? Date.parse(photo.updatedAt) : null;
             document.title = `${plant.name} · Garden Legacy`;
         }
     } catch (err) {
@@ -460,6 +559,8 @@ async function init() {
     }
 
     fillForm();
+    renderPhoto();
+    showFlash();
     setSaveLabel(saveLabel(), false);
     saveButtons.forEach(b => { b.hidden = false; });
     $("save-bar").hidden = false;
