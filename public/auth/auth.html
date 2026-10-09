@@ -12,8 +12,6 @@
     <script src="/js/theme.js"></script>
 </head>
 <body>
-    <button class="btn btn-mono login-theme" id="theme-toggle" type="button"></button>
-
     <main class="login">
         <div class="login-card">
             <h1 class="brand">Garden Legacy</h1>
@@ -35,10 +33,6 @@
     </main>
 
     <script type="module">
-        import { initThemeToggle } from "/js/lib.js";
-
-        initThemeToggle(document.getElementById("theme-toggle"));
-
         const alertBox = document.getElementById("alert");
         const submit = document.getElementById("submit");
 

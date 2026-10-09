@@ -1,8 +1,6 @@
 import {
-    ago, api, chipEl, chipFromDays, el, initThemeToggle, shortDate, showError, clearError, todayISO, todayParts
+    ago, api, chipEl, chipFromDays, el, shortDate, showError, clearError, todayISO, todayParts
 } from "/js/lib.js";
-
-initThemeToggle(document.getElementById("theme-toggle"));
 
 const today = todayParts();
 document.getElementById("today-label").append(
