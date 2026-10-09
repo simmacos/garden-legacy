@@ -13,11 +13,12 @@
   "license": "ISC",
   "author": "simmacos",
   "type": "commonjs",
-  "main": "index.js",
+  "main": "dist/index.js",
   "scripts": {
     "dev": "ts-node src/index.ts",
-    "build": "tsc",
-    "start": "node dist/index.js"
+    "typecheck": "tsc --noEmit",
+    "build": "rm -rf dist && tsc",
+    "start": "node --enable-source-maps dist/index.js"
   },
   "dependencies": {
     "@types/cookie": "^0.6.0",
@@ -42,5 +43,8 @@
     "prettier": "^3.6.2",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.2"
+  },
+  "engines": {
+    "node": ">=20"
   }
 }

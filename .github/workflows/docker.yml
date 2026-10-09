@@ -1,0 +1,80 @@
+# Costruisce l'immagine Docker dell'app e la pubblica su GitHub Container Registry (GHCR).
+# Parte a ogni push su `main` (e a mano dalla scheda "Actions" -> "Run workflow").
+# Risultato: ghcr.io/simmacos/garden-legacy:latest  e  ghcr.io/simmacos/garden-legacy:sha-<commit>
+
+name: Docker image
+
+on:
+  push:
+    branches: [main]
+    # Modifiche che non cambiano l'immagine non fanno ricostruire nulla
+    paths-ignore:
+      - "**.md"
+      - "dev-compose/**"
+      - ".vscode/**"
+  workflow_dispatch:
+
+# Se arriva un nuovo push mentre una build è in corso, quella vecchia viene annullata
+concurrency:
+  group: docker-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  IMAGE: ghcr.io/${{ github.repository }}
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read     # leggere il codice
+      packages: write    # pubblicare su GHCR (usa il token temporaneo di GitHub, nessun segreto da creare)
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Login to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Calcola nomi (tag) ed etichette dell'immagine
+      - name: Image metadata
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ env.IMAGE }}
+          tags: |
+            type=raw,value=latest
+            type=sha,prefix=sha-,format=short
+
+      - name: Build and push
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          push: true
+          # Il server di casa è un Intel (x86-64): basta una sola architettura
+          platforms: linux/amd64
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # Cache degli strati tra una build e l'altra: se le dipendenze non cambiano, `npm ci` viene saltato
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          # Niente attestazioni extra: restano solo i tag sopra, senza voci "unknown/unknown" in GHCR
+          provenance: false
+
+      - name: Summary
+        run: |
+          {
+            echo "### Immagine pubblicata"
+            echo ""
+            echo '```'
+            echo "${{ steps.meta.outputs.tags }}"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

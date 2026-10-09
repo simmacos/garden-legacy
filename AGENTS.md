@@ -77,6 +77,16 @@ La base è Node.js/TypeScript con Moleculer, Sequelize e MariaDB. Sono implement
   - password in chiaro per scelta (uso interno), nessun logout per ora.
 - logica condivisa in `src/lib/` (date, validazione, calcolo promemoria, elaborazione foto, rate limiting, info client).
 
+Build e avvio:
+
+- `npm run dev`: sviluppo con ts-node (`src/`). `npm run typecheck`: solo controllo dei tipi.
+- `npm run build`: compila `src/` in `dist/` (stessa struttura, niente `.d.ts`); `npm start`: `node dist/index.js`. `dist/` è ignorata da git. `public/` resta fuori da `dist/` e viene servita da `../../public` (relativo a `services/`, sia in `src/` sia in `dist/`).
+- `src/index.ts` carica i servizi con l'estensione del proprio file (`.ts` in sviluppo, `.js` in `dist/`); il REPL di Moleculer parte solo con un terminale interattivo.
+- `Dockerfile` multi-stage (fase `build` con TypeScript, fase `runtime` con solo dipendenze di produzione, `dist/` e `public/`), utente non-root `node`, `TZ=Europe/Rome` (il server calcola "oggi" per i promemoria), `HEALTHCHECK` su `/`, porta 4005; la configurazione arriva da variabili d'ambiente (nessun `.env` nell'immagine, vedi `.dockerignore`). Prova locale: `docker build -t garden-legacy:local .`.
+- Variabili d'ambiente lette dall'app (nient'altro): `DB_DIALECT`, `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USER`, `DB_PASSWORD` (obbligatorie, nessun default; utente e password sono codificati nell'URL di connessione, quindi anche caratteri come `@ : / #` vanno bene); `WEB_UI_PORT` (default 4005); `TRUST_PROXY` (default `false`); `COOKIE_SECURE` (default `auto`). Nell'immagine Docker sono impostate `NODE_ENV=production`, `TZ=Europe/Rome`, `WEB_UI_PORT=4005`. In un container `DB_HOST` è il nome del servizio del DB (es. `db`), non `localhost`.
+- CI/CD: `.github/workflows/docker.yml` costruisce l'immagine (solo `linux/amd64`: il server di casa è un Intel 4005U) a ogni push su `main` (ignorando modifiche a `*.md`, `dev-compose/`, `.vscode/`) e la pubblica su GHCR come `ghcr.io/simmacos/garden-legacy:latest` e `:sha-<commit>`, con il token temporaneo di GitHub (nessun segreto da configurare). Dopo il primo push il pacchetto è privato: renderlo pubblico dalle impostazioni del pacchetto, oppure fare `docker login ghcr.io` sul server.
+- Prossimi passi di deploy: compose di produzione per Dockge (app + db) dietro Nginx Proxy Manager + Cloudflare; `TRUST_PROXY` numerico. Con Cloudflare arancione + NPM il rate limiting dovrebbe usare un `TRUST_PROXY` numerico (numero di proxy) per leggere l'IP vero.
+
 Le azioni dei servizi dati sostituiscono quelle di moleculer-db con `cache: false` (la cache di moleculer-db non è per utente). Le route del gateway hanno gli alias, quindi espongono solo quelli (policy `restrict`).
 
 Frontend (HTML/CSS/JS semplici in `public/`, moduli ES, nessun build):

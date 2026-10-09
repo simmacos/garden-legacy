@@ -2,8 +2,10 @@
   // Visit https://aka.ms/tsconfig to read more about this file
   "compilerOptions": {
     // File Layout
-    // "rootDir": "./src",
-    // "outDir": "./dist",
+    // `npm run build` compila src/ in dist/ (stessa struttura): dist/index.js, dist/services/..., dist/lib/...
+    // `public/` resta fuori: il gateway la cerca in ../../public rispetto a dist/services (e a src/services).
+    "rootDir": "./src",
+    "outDir": "./dist",
 
     // Environment Settings
     // See also https://aka.ms/tsconfig/module
@@ -15,10 +17,10 @@
     // "types": ["node"],
     // and npm install -D @types/node
 
-    // Other Outputs
+    // Other Outputs (è un'applicazione, non una libreria: niente file .d.ts)
     "sourceMap": true,
-    "declaration": true,
-    "declarationMap": true,
+    "declaration": false,
+    "declarationMap": false,
 
     // Stricter Typechecking Options
     "noUncheckedIndexedAccess": true,
@@ -40,5 +42,6 @@
     "noUncheckedSideEffectImports": true,
     "moduleDetection": "force",
     "skipLibCheck": true,
-  }
+  },
+  "include": ["src/**/*"]
 }

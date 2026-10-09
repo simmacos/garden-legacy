@@ -11,7 +11,10 @@ export default class DataService extends Service {
     public constructor(broker: ServiceBroker) {
         super(broker);
 
-        this.connectionString = `${process.env.DB_DIALECT}://${process.env.DB_USER}:${process.env.DB_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_DATABASE}`;
+        // Utente e password vanno codificati: con caratteri come @ : / # nell'URL verrebbero letti host e database sbagliati.
+        const user = encodeURIComponent(process.env.DB_USER ?? "");
+        const password = encodeURIComponent(process.env.DB_PASSWORD ?? "");
+        this.connectionString = `${process.env.DB_DIALECT}://${user}:${password}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_DATABASE}`;
     }
 
     protected getBaseSchema() {

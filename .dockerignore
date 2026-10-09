@@ -1,0 +1,30 @@
+# Cosa NON mandare a Docker quando costruisce l'immagine (contesto di build):
+# più veloce, e soprattutto segreti e file inutili non possono finire nell'immagine.
+
+# Dipendenze e build: si rigenerano dentro l'immagine
+node_modules
+dist
+
+# Segreti e configurazione locale
+.env
+*.env
+.env.*
+
+# Versionamento, CI, editor, strumenti
+.git
+.gitignore
+.github
+.vscode
+.claude
+.understand-anything
+
+# Design, documentazione, compose di sviluppo: non servono per eseguire l'app
+Garden Legacy design system
+dev-compose
+AGENTS.md
+README.md
+
+# Il Dockerfile stesso e i log
+Dockerfile
+.dockerignore
+*.log
