@@ -95,4 +95,4 @@ Dockerfile            multi-stage image, runs as non-root
 
 ## License
 
-ISC
+[ISC](LICENSE)
