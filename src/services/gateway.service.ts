@@ -5,6 +5,7 @@ import path from "path";
 // "cookie" è CommonJS senza default export: si importa la funzione nominata
 import { parse as parseCookie } from "cookie";
 import { clientInfo } from "../lib/client";
+import { cookieIsSecure, sessionCookie } from "../lib/session";
 export default class WebUIService extends Service {
 
     public constructor(broker: ServiceBroker) {
@@ -14,7 +15,7 @@ export default class WebUIService extends Service {
             name: "web-ui",
             mixins: [ApiGateway],
             methods: {
-                async authenticate(ctx, route, req) {
+                async authenticate(ctx, route, req, res) {
                     const cookies = parseCookie(req.headers.cookie || "");
                     const token = cookies.auth_token;
 
@@ -22,12 +23,18 @@ export default class WebUIService extends Service {
                         throw new ApiGateway.Errors.UnAuthorizedError(ApiGateway.Errors.ERR_INVALID_TOKEN, "Login required");
                     }
 
-                    const user = await ctx.call("auth.resolveToken", { token });
-                    if (!user) {
+                    const result = await ctx.call("auth.resolveToken", { token }) as
+                        { user: unknown; renewal?: { maxAgeSeconds: number } } | null;
+                    if (!result) {
                         throw new ApiGateway.Errors.UnAuthorizedError(ApiGateway.Errors.ERR_INVALID_TOKEN, "Token not valid!");
                     }
 
-                    return user;
+                    // Sessione scorrevole: se il server l'ha prolungata, si prolunga anche il cookie nel browser
+                    if (result.renewal) {
+                        res.setHeader("Set-Cookie", sessionCookie(token, result.renewal.maxAgeSeconds, cookieIsSecure(clientInfo(req))));
+                    }
+
+                    return result.user;
                 }
             },
 

@@ -20,6 +20,19 @@ export default class SessionsService extends DataService {
                 list: { cache: false },
                 count: { cache: false },
 
+                // Sessione scorrevole: sposta in avanti la scadenza di una sessione esistente.
+                renew: {
+                    cache: false,
+                    params: { id: "number", expiresAt: "any" },
+                    async handler(ctx) {
+                        const { id, expiresAt } = ctx.params as { id: number; expiresAt: Date | string };
+                        const date = new Date(expiresAt);
+                        if (Number.isNaN(date.getTime())) throw new Error("expiresAt is not valid");
+                        const [updated] = await this.adapter.model.update({ expiresAt: date }, { where: { id } });
+                        return { id, updated };
+                    }
+                },
+
                 create: {
                     params: {
                         token: "string",

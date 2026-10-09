@@ -91,6 +91,7 @@ Dockerfile            multi-stage image, runs as non-root
 ## Known limitations
 
 - Internal-use app: passwords are stored in plain text, there is no sign-up and no logout.
+- Sessions last 30 days and renew themselves while you use the app (at most once a day); they end after 30 days of inactivity or 180 days after login.
 - Login is rate-limited (5 failures per IP+user and 20 per IP in 15 minutes) with counters kept in memory.
 - The DB schema is created with Sequelize `sync` (no migrations).
 - No automated tests yet.
