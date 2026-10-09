@@ -65,6 +65,12 @@ export default class WebUIService extends Service {
                             "DELETE /tasks/:id": "plantTasks.remove",
                             "POST /tasks/:id/done": "plantTasks.done",
 
+                            // Foto: una per pianta. PUT riceve il file grezzo (stream), non JSON.
+                            "GET /photos": "plantPhotos.list",
+                            "GET /plants/:id/photo": "plantPhotos.get",
+                            "PUT /plants/:id/photo": { type: "stream", action: "plantPhotos.save" },
+                            "DELETE /plants/:id/photo": "plantPhotos.remove",
+
                             "GET /reminders": "reminders.list"
                         }
                     },

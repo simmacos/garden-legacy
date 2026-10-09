@@ -33,7 +33,17 @@ Ogni pianta appartiene a un solo account e può avere una sola categoria, oppure
 
 L'annaffiatura rapida dalla dashboard registra/aggiorna la data dell'ultima annaffiatura. Per annaffiatura e concimazione si conserva solo la data più recente, senza uno storico degli eventi.
 
-La foto potrà essere caricata da file o acquisita con la fotocamera del telefono. Si vuole ridimensionarla/comprimerla **lato server** e salvarla nel database SQL. La dimensione/formato precisi non sono ancora stati decisi. Foto e UI sono rimandate a dopo i servizi.
+La foto può essere caricata da file o acquisita con la fotocamera del telefono. Viene elaborata **lato server** con `sharp` e salvata nel database SQL (tabella `plant_photos`, una per pianta; la foto originale non viene conservata).
+
+**Stile foto (deciso): "Ultra" con vivacità "Extra"** — implementato in `src/lib/photo.ts`:
+
+- griglia di pixel con lato lungo 192; ogni pixel è la mediana per canale di un blocco 4×4 (bordi netti, niente medie sporche);
+- vivacità: vibrance 1.2, saturazione ×1.2, curva a S 0.32;
+- contorni scuri sui bordi netti (Sobel sulla luminanza);
+- palette a 96 colori (libimagequant) con dithering ordinato Bayer 4×4;
+- risultato: PNG indicizzato di ~12–26 KB. Il browser lo ingrandisce con `image-rendering: pixelated`.
+
+Tutti i parametri sono costanti in cima a `photo.ts`. Limiti: upload max 12 MB, immagini oltre 100 megapixel rifiutate; si accettano i formati letti da `sharp` (JPEG, PNG, WebP, GIF, TIFF, ...); EXIF applicato; trasparenze appiattite su bianco.
 
 ## Categorie
 
@@ -59,7 +69,8 @@ La base è Node.js/TypeScript con Moleculer, Sequelize e MariaDB. Sono implement
 - autenticazione con login e sessioni tramite cookie (`auth`, `users`, `sessions`);
 - servizi dati `categories`, `plants`, `plantTasks` (in `src/services/data/`) e `reminders`, tutti filtrati per `ctx.meta.user.id`: una risorsa di un altro utente risponde 404;
 - API REST in `/api` (alias nel gateway): `/categories`, `/plants` (+ `/water`, `/fertilize`), `/plants/:plantId/tasks`, `/tasks/:id` (+ `/done`), `/reminders`;
-- logica condivisa in `src/lib/` (date, validazione, calcolo promemoria).
+- servizio `plantPhotos` (backend foto), con API: `GET/PUT/DELETE /plants/:id/photo` e `GET /photos` (elenco `{plantId, updatedAt}` delle piante con foto). `PUT` riceve il file grezzo nel body (stream, es. `fetch(url, { method: "PUT", body: file })`), non JSON; `GET` accetta `?v=<updatedAt>` per una cache di un anno (senza `v` va rivalidata);
+- logica condivisa in `src/lib/` (date, validazione, calcolo promemoria, elaborazione foto).
 
 Le azioni dei servizi dati sostituiscono quelle di moleculer-db con `cache: false` (la cache di moleculer-db non è per utente). Le route del gateway hanno gli alias, quindi espongono solo quelli (policy `restrict`).
 
@@ -68,7 +79,7 @@ Frontend (HTML/CSS/JS semplici in `public/`, moduli ES, nessun build):
 - `auth/auth.html` login; `dashboard.html` promemoria + piante per categoria + annaffiatura rapida; `plant.html` scheda pianta (senza `?id=` crea una pianta; con `?id=N` visualizza/modifica, cura, attività, categorie, eliminazione);
 - `js/lib.js` (API, DOM senza `innerHTML`, date, chip di stato, tema), `js/dashboard.js`, `js/plant.js`, `js/theme.js` (tema prima del paint).
 
-Mancano: modello/servizio foto (`plantPhoto` è definito ma non collegato; nella UI restano segnaposto e `TODO(photo)`), logout, README aggiornato. Il README descrive ancora in parte il template iniziale.
+Mancano: frontend della foto (pulsanti "Take photo"/"Upload file", anteprima, foto nelle card; nella UI restano segnaposto e `TODO(photo)`), logout, README aggiornato. Il README descrive ancora in parte il template iniziale.
 
 Questa sezione fotografa lo stato visto durante il brainstorming e va aggiornata quando il codice cambia.
 
@@ -99,5 +110,4 @@ Sono previsti più account e i dati devono essere isolati per utente. La registr
 
 ## Questioni ancora aperte
 
-- Formato/dimensione finale della foto e libreria di resize lato server.
-- Effetto grafico sulle foto (il design ne simula uno pixelato lato server): da decidere insieme al servizio foto.
+- Nessuna al momento.
