@@ -1,0 +1,60 @@
+# Stack di produzione di Garden Legacy per Dockge: app + MariaDB.
+# Le password NON stanno qui: si scrivono nel file .env accanto a questo (vedi .env.example e README.md).
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"   # senza limite i log di Docker crescono all'infinito
+    max-file: "3"
+
+services:
+  app:
+    image: ${GARDEN_IMAGE:-ghcr.io/simmacos/garden-legacy:latest}
+    restart: unless-stopped
+    logging: *logging
+    depends_on:
+      db:
+        condition: service_healthy   # l'app parte solo quando il DB è pronto
+    environment:
+      DB_DIALECT: mariadb
+      DB_HOST: db                    # nome del servizio qui sotto
+      DB_PORT: "3306"
+      DB_DATABASE: garden
+      DB_USER: garden
+      DB_PASSWORD: ${DB_PASSWORD:?imposta DB_PASSWORD nel file .env}
+      # Davanti all'app ci sono 2 proxy: Cloudflare e Nginx Proxy Manager. Serve per l'IP vero del client
+      # (rate limiting del login) e per sapere che la connessione è HTTPS (cookie Secure).
+      TRUST_PROXY: "2"
+      COOKIE_SECURE: auto
+    ports:
+      # In NPM: Forward Hostname = IP del server, Forward Port = questa porta.
+      # Se la 4005 è già occupata sul server, cambia APP_PORT nel .env.
+      - "${APP_PORT:-4005}:4005"
+    # "default" = la rete normale dello stack (serve per la porta pubblicata), "internal" = solo per parlare col db
+    networks: [default, internal]
+
+  db:
+    image: mariadb:10
+    restart: unless-stopped
+    logging: *logging
+    environment:
+      # ATTENZIONE: MariaDB legge queste variabili SOLO al primo avvio (volume vuoto).
+      MARIADB_DATABASE: garden
+      MARIADB_USER: garden
+      MARIADB_PASSWORD: ${DB_PASSWORD:?imposta DB_PASSWORD nel file .env}
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?imposta DB_ROOT_PASSWORD nel file .env}
+    volumes:
+      - ./data/db:/var/lib/mysql     # i dati stanno nella cartella dello stack (facile da salvare)
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks: [internal]             # solo rete interna: nessuna porta pubblicata, nessuna uscita verso internet
+
+networks:
+  # Rete privata app <-> db. "internal" = i container collegati solo a questa non hanno accesso a internet
+  # e nessun altro stack può raggiungere il database.
+  internal:
+    internal: true
