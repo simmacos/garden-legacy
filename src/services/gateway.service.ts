@@ -4,6 +4,7 @@ import ApiGateway from "moleculer-web";
 import path from "path";
 // "cookie" è CommonJS senza default export: si importa la funzione nominata
 import { parse as parseCookie } from "cookie";
+import { clientInfo } from "../lib/client";
 export default class WebUIService extends Service {
 
     public constructor(broker: ServiceBroker) {
@@ -81,6 +82,11 @@ export default class WebUIService extends Service {
                     {
                         path: "/api/auth",
                         authentication: false,
+
+                        // IP e protocollo del client, serve al rate limiting del login e al flag Secure del cookie
+                        onBeforeCall(ctx: any, _route: any, req: any) {
+                            ctx.meta.$client = clientInfo(req);
+                        },
                         aliases: {
                             "POST /login": "auth.login",
                         }

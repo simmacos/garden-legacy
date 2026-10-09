@@ -70,7 +70,12 @@ La base è Node.js/TypeScript con Moleculer, Sequelize e MariaDB. Sono implement
 - servizi dati `categories`, `plants`, `plantTasks` (in `src/services/data/`) e `reminders`, tutti filtrati per `ctx.meta.user.id`: una risorsa di un altro utente risponde 404;
 - API REST in `/api` (alias nel gateway): `/categories`, `/plants` (+ `/water`, `/fertilize`), `/plants/:plantId/tasks`, `/tasks/:id` (+ `/done`), `/reminders`;
 - servizio `plantPhotos` (backend foto), con API: `GET/PUT/DELETE /plants/:id/photo` e `GET /photos` (elenco `{plantId, updatedAt}` delle piante con foto). `PUT` riceve il file grezzo nel body (stream, es. `fetch(url, { method: "PUT", body: file })`), non JSON; `GET` accetta `?v=<updatedAt>` per una cache di un anno (senza `v` va rivalidata);
-- logica condivisa in `src/lib/` (date, validazione, calcolo promemoria, elaborazione foto).
+- sicurezza del login:
+  - **rate limiting** in memoria (`src/lib/rate-limit.ts`, si azzera al riavvio), finestra scorrevole di 15 minuti: 5 login falliti per coppia IP+utente e 20 per IP; oltre, `429` con `Retry-After`, anche se la password è giusta (non si controlla finché è bloccato). Un login riuscito azzera il contatore IP+utente. Il messaggio compare nella pagina di login;
+  - **cookie** `auth_token`: `HttpOnly; SameSite=Lax; Path=/; Max-Age=30 giorni`, più `Secure` quando la richiesta è HTTPS (`COOKIE_SECURE=auto`, default; `true`/`false` per forzarlo). Su HTTP semplice (non localhost) `Secure` farebbe scartare il cookie al browser, quindi non va forzato lì. La risposta di login ha `Cache-Control: no-store`;
+  - **dietro un reverse proxy** HTTPS fidato impostare `TRUST_PROXY=true`: si leggono `X-Forwarded-For` (si usa l'**ultimo** valore, il primo lo scrive il client) e `X-Forwarded-Proto`. Senza, quegli header sono ignorati. `.env` viene caricato all'avvio (`src/index.ts`);
+  - password in chiaro per scelta (uso interno), nessun logout per ora.
+- logica condivisa in `src/lib/` (date, validazione, calcolo promemoria, elaborazione foto, rate limiting, info client).
 
 Le azioni dei servizi dati sostituiscono quelle di moleculer-db con `cache: false` (la cache di moleculer-db non è per utente). Le route del gateway hanno gli alias, quindi espongono solo quelli (policy `restrict`).
 

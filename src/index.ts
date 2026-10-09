@@ -1,3 +1,4 @@
+import "dotenv/config"; // carica .env prima di tutto (TRUST_PROXY, COOKIE_SECURE, DB_*, ...)
 import { ServiceBroker } from "moleculer";
 
 // 2. Importiamo la configurazione che abbiamo creato nel file a parte
