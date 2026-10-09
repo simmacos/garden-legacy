@@ -1,14 +1,14 @@
 {
   "name": "garden-legacy",
   "version": "0.0.1",
-  "description": "plants managemeent system",
-  "homepage": "https://github.com/simmacos/scintilla#readme",
+  "description": "Self-hosted web app to keep track of plants, watering and garden tasks",
+  "homepage": "https://github.com/simmacos/garden-legacy#readme",
   "bugs": {
-    "url": "https://github.com/simmacos/scintilla/issues"
+    "url": "https://github.com/simmacos/garden-legacy/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/simmacos/scintilla.git"
+    "url": "git+https://github.com/simmacos/garden-legacy.git"
   },
   "license": "ISC",
   "author": "simmacos",

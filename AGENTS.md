@@ -100,7 +100,7 @@ Foto nelle card della dashboard (come 4a/4b del design): area foto 150px su desk
 
 **Regola di lavoro per la UI:** misure, testi e comportamento si prendono dal file di design (`Garden Legacy design system/`, sezioni 4a/4b/4c). I due file coincidono su 4a/4b; su 4c vale `Garden Legacy.dc.html` (il più recente: "Take photo" solo mobile, secondo pulsante "Upload photo").
 
-Mancano: un'azione "rimuovi foto" nella UI (l'API `DELETE` esiste, il design non la prevede), logout, README aggiornato. Il README descrive ancora in parte il template iniziale.
+Mancano: un'azione "rimuovi foto" nella UI (l'API `DELETE` esiste, il design non la prevede), logout. Il `README.md` (in inglese) descrive l'app, l'avvio in sviluppo, la configurazione e l'API; la guida di deploy è in `deploy/README.md`.
 
 Questa sezione fotografa lo stato visto durante il brainstorming e va aggiornata quando il codice cambia.
 
