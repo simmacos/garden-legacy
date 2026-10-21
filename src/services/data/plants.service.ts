@@ -23,7 +23,8 @@ const OPTIONAL_FIELDS: Record<string, (value: unknown, categories: CategoryMap) 
     lastWateredAt: v => parseDate(v, "Last watered"),
     wateringIntervalDays: v => parseInterval(v, "Watering frequency"),
     lastFertilizedAt: v => parseDate(v, "Last fertilized"),
-    fertilizingIntervalDays: v => parseInterval(v, "Fertilizing frequency")
+    fertilizingIntervalDays: v => parseInterval(v, "Fertilizing frequency"),
+    fertilizingDueDate: v => parseDate(v, "Fertilizing date")
 };
 
 function parseOptionalFields(params: Record<string, unknown>, categories: CategoryMap) {
@@ -52,6 +53,7 @@ function serialize(row: any, categories: CategoryMap) {
         wateringIntervalDays: p.wateringIntervalDays,
         lastFertilizedAt: p.lastFertilizedAt,
         fertilizingIntervalDays: p.fertilizingIntervalDays,
+        fertilizingDueDate: p.fertilizingDueDate ?? null,
         createdAt: p.createdAt,
         updatedAt: p.updatedAt
     };
@@ -65,7 +67,8 @@ const plantFieldParams = {
     lastWateredAt: optionalAny,
     wateringIntervalDays: optionalAny,
     lastFertilizedAt: optionalAny,
-    fertilizingIntervalDays: optionalAny
+    fertilizingIntervalDays: optionalAny,
+    fertilizingDueDate: optionalAny
 };
 
 // Le azioni list/get/create/update/remove sostituiscono quelle di moleculer-db:
@@ -101,7 +104,10 @@ export default class PlantsService extends DataService {
                 async recordDone(ctx: Context<any, any>, field: "lastWateredAt" | "lastFertilizedAt") {
                     const userId = currentUserId(ctx);
                     const plant = await this.findOwned(ctx.params.id, userId);
-                    await plant.update({ [field]: dateOrToday(ctx.params.date) });
+                    const patch: Record<string, unknown> = { [field]: dateOrToday(ctx.params.date) };
+                    // Concimazione una tantum: una volta fatta la data si azzera e non torna (la frequenza resta, come nel design)
+                    if (field === "lastFertilizedAt" && plant.fertilizingDueDate) patch.fertilizingDueDate = null;
+                    await plant.update(patch);
                     return serialize(plant, await loadCategories(ctx));
                 }
             },

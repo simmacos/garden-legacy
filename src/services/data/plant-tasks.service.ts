@@ -5,8 +5,8 @@ import plantTaskModel from "../../models/plant-task.model";
 import { currentUserId, dateOrToday, idParam, notFound, parseDate, parseInterval, parseName } from "../../lib/validation";
 
 const serialize = (row: any) => {
-    const { id, plantId, name, intervalDays, lastDoneAt, createdAt, updatedAt } = row.get({ plain: true });
-    return { id, plantId, name, intervalDays, lastDoneAt, createdAt, updatedAt };
+    const { id, plantId, name, intervalDays, lastDoneAt, dueDate, createdAt, updatedAt } = row.get({ plain: true });
+    return { id, plantId, name, intervalDays, lastDoneAt, dueDate: dueDate ?? null, createdAt, updatedAt };
 };
 
 const optionalAny = { type: "any", optional: true };
@@ -80,7 +80,8 @@ export default class PlantTasksService extends DataService {
                         plantId: idParam,
                         name: { type: "any" },
                         intervalDays: optionalAny,
-                        lastDoneAt: optionalAny
+                        lastDoneAt: optionalAny,
+                        dueDate: optionalAny
                     },
                     async handler(ctx) {
                         const params = ctx.params as Record<string, unknown>;
@@ -89,7 +90,8 @@ export default class PlantTasksService extends DataService {
                             plantId: params.plantId,
                             name: parseName(params.name, "Name", 120),
                             intervalDays: parseInterval(params.intervalDays, "Frequency"),
-                            lastDoneAt: parseDate(params.lastDoneAt, "Last done")
+                            lastDoneAt: parseDate(params.lastDoneAt, "Last done"),
+                            dueDate: parseDate(params.dueDate, "Due date")
                         });
                         return serialize(task);
                     }
@@ -97,7 +99,7 @@ export default class PlantTasksService extends DataService {
 
                 update: {
                     cache: false,
-                    params: { id: idParam, name: optionalAny, intervalDays: optionalAny, lastDoneAt: optionalAny },
+                    params: { id: idParam, name: optionalAny, intervalDays: optionalAny, lastDoneAt: optionalAny, dueDate: optionalAny },
                     async handler(ctx) {
                         const params = ctx.params as Record<string, unknown>;
                         const task = await this.findOwned(ctx, params.id as number);
@@ -105,6 +107,7 @@ export default class PlantTasksService extends DataService {
                         if (params.name !== undefined) patch.name = parseName(params.name, "Name", 120);
                         if (params.intervalDays !== undefined) patch.intervalDays = parseInterval(params.intervalDays, "Frequency");
                         if (params.lastDoneAt !== undefined) patch.lastDoneAt = parseDate(params.lastDoneAt, "Last done");
+                        if (params.dueDate !== undefined) patch.dueDate = parseDate(params.dueDate, "Due date");
                         await task.update(patch);
                         return serialize(task);
                     }
@@ -127,7 +130,13 @@ export default class PlantTasksService extends DataService {
                     async handler(ctx) {
                         const params = ctx.params as Record<string, unknown>;
                         const task = await this.findOwned(ctx, params.id as number);
-                        await task.update({ lastDoneAt: dateOrToday(params.date) });
+                        const patch: Record<string, unknown> = { lastDoneAt: dateOrToday(params.date) };
+                        // Lavoro una tantum: una volta fatto non torna (si azzerano data e frequenza, come nel design)
+                        if (task.dueDate) {
+                            patch.dueDate = null;
+                            patch.intervalDays = null;
+                        }
+                        await task.update(patch);
                         return serialize(task);
                     }
                 }

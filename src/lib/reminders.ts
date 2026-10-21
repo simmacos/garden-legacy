@@ -7,6 +7,8 @@ export interface ReminderPlant {
     wateringIntervalDays: number | null;
     lastFertilizedAt: string | null;
     fertilizingIntervalDays: number | null;
+    /** Concimazione una tantum: se c'è, il promemoria è questa data (vince su ultima + frequenza). */
+    fertilizingDueDate: string | null;
 }
 
 export interface ReminderTask {
@@ -15,6 +17,8 @@ export interface ReminderTask {
     name: string;
     intervalDays: number | null;
     lastDoneAt: string | null;
+    /** Lavoro una tantum: se c'è, il promemoria è questa data (vince su ultima + frequenza). */
+    dueDate: string | null;
 }
 
 export interface Reminder {
@@ -29,13 +33,17 @@ export interface Reminder {
     daysUntilDue: number;
 }
 
-function schedule(last: string | null, interval: number | null, today: string) {
-    // Senza ultima data o senza frequenza non c'è promemoria.
-    if (!last || !interval) return null;
-    const dueDate = addDays(last, interval);
+function describe(dueDate: string, today: string) {
     const daysUntilDue = daysBetween(today, dueDate);
     const status = daysUntilDue < 0 ? "overdue" : daysUntilDue === 0 ? "today" : "upcoming";
     return { dueDate, daysUntilDue, status } as const;
+}
+
+/** Scadenza di un'attività: la data singola se c'è, altrimenti ultima + frequenza (senza una delle due niente promemoria). */
+function schedule(last: string | null, interval: number | null, dueDate: string | null, today: string) {
+    if (dueDate) return describe(dueDate, today);
+    if (!last || !interval) return null;
+    return describe(addDays(last, interval), today);
 }
 
 /** Ordine: scaduti (più vecchi prima), oggi, futuri più vicini = dueDate crescente. */
@@ -44,16 +52,16 @@ export function buildReminders(plants: ReminderPlant[], tasks: ReminderTask[], t
 
     for (const plant of plants) {
         const base = { plantId: plant.id, plantName: plant.name, taskId: null, taskName: null };
-        const watering = schedule(plant.lastWateredAt, plant.wateringIntervalDays, today);
+        const watering = schedule(plant.lastWateredAt, plant.wateringIntervalDays, null, today);
         if (watering) reminders.push({ ...base, type: "watering", ...watering });
-        const fertilizing = schedule(plant.lastFertilizedAt, plant.fertilizingIntervalDays, today);
+        const fertilizing = schedule(plant.lastFertilizedAt, plant.fertilizingIntervalDays, plant.fertilizingDueDate, today);
         if (fertilizing) reminders.push({ ...base, type: "fertilizing", ...fertilizing });
     }
 
     const plantNames = new Map(plants.map(p => [p.id, p.name]));
     for (const task of tasks) {
         const plantName = plantNames.get(task.plantId);
-        const due = schedule(task.lastDoneAt, task.intervalDays, today);
+        const due = schedule(task.lastDoneAt, task.intervalDays, task.dueDate, today);
         if (plantName === undefined || !due) continue;
         reminders.push({
             type: "task",
