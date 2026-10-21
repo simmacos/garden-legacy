@@ -46,6 +46,13 @@ export default {
             type: DataTypes.SMALLINT.UNSIGNED,
             allowNull: true,
             defaultValue: null
+        },
+        // Concimazione una tantum ("On a date"): con una data il promemoria è quella data, non ultima + frequenza.
+        // Colonna aggiunta dopo: ensureColumns() la crea all'avvio sui database esistenti.
+        fertilizingDueDate: {
+            type: DataTypes.DATEONLY,
+            allowNull: true,
+            defaultValue: null
         }
     },
     options: {

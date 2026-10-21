@@ -1,5 +1,6 @@
 import { Context, ServiceBroker } from "moleculer";
 import DataService from "./data.base";
+import { ensureColumns } from "../../lib/schema";
 import plantModel from "../../models/plant.model";
 import {
     badRequest, currentUserId, dateOrToday, idParam, notFound,
@@ -81,6 +82,12 @@ export default class PlantsService extends DataService {
             dependencies: ["users", "categories"],
 
             model: plantModel,
+
+            // Dopo la connessione del mixin (che crea le tabelle mancanti): aggiunge le colonne nuove a una tabella esistente
+            async started() {
+                const added = await ensureColumns(this.adapter.model, ["fertilizingDueDate"]);
+                if (added.length) this.logger.info(`Database: added column(s) to plants: ${added.join(", ")}`);
+            },
 
             methods: {
                 /** Pianta dell'utente, altrimenti 404 (anche se esiste ma è di un altro). */

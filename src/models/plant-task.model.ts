@@ -22,6 +22,13 @@ export default {
             type: DataTypes.DATEONLY,
             allowNull: true,
             defaultValue: null
+        },
+        // Lavoro una tantum ("On a date"): con una data il promemoria è quella data, non ultima + frequenza.
+        // Colonna aggiunta dopo: ensureColumns() la crea all'avvio sui database esistenti.
+        dueDate: {
+            type: DataTypes.DATEONLY,
+            allowNull: true,
+            defaultValue: null
         }
     },
     options: {

@@ -1,5 +1,6 @@
 import { Context, ServiceBroker } from "moleculer";
 import DataService from "./data.base";
+import { ensureColumns } from "../../lib/schema";
 import plantTaskModel from "../../models/plant-task.model";
 import { currentUserId, dateOrToday, idParam, notFound, parseDate, parseInterval, parseName } from "../../lib/validation";
 
@@ -24,6 +25,12 @@ export default class PlantTasksService extends DataService {
             dependencies: ["plants"],
 
             model: plantTaskModel,
+
+            // Dopo la connessione del mixin (che crea le tabelle mancanti): aggiunge le colonne nuove a una tabella esistente
+            async started() {
+                const added = await ensureColumns(this.adapter.model, ["dueDate"]);
+                if (added.length) this.logger.info(`Database: added column(s) to plant_tasks: ${added.join(", ")}`);
+            },
 
             methods: {
                 async assertPlantOwned(ctx: Context<any, any>, plantId: number) {
