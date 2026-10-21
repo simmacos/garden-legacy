@@ -18,7 +18,10 @@ let photoVersions = new Map(); // plantId -> updatedAt (ms): serve all'URL con v
 
 // ---------- Promemoria ----------
 
-const REMINDER_CODES = { watering: "WAT", fertilizing: "FER", task: "TSK" };
+const UPCOMING_LIMIT = 5; // promemoria futuri mostrati prima di "Show more"
+let showAllUpcoming = false;
+
+const REMINDER_CODES ={ watering: "WAT", fertilizing: "FER", task: "TSK" };
 
 function reminderKind(r) {
     if (r.type === "watering") return "Water";
@@ -47,7 +50,24 @@ function renderReminders() {
         ));
         return;
     }
-    box.replaceChildren(...reminders.map(reminderRow));
+    // Scaduti e di oggi sempre tutti; dei futuri solo i primi UPCOMING_LIMIT, il resto dietro il pulsante.
+    const due = reminders.filter(r => r.daysUntilDue <= 0);
+    const upcoming = reminders.filter(r => r.daysUntilDue > 0);
+    const hidden = showAllUpcoming ? 0 : Math.max(0, upcoming.length - UPCOMING_LIMIT);
+    const rows = [...due, ...(hidden ? upcoming.slice(0, UPCOMING_LIMIT) : upcoming)].map(reminderRow);
+
+    if (upcoming.length > UPCOMING_LIMIT) {
+        rows.push(el("button", {
+            class: "btn btn-mono btn-dashed reminders-more",
+            type: "button",
+            "aria-expanded": showAllUpcoming ? "true" : "false",
+            onclick: () => {
+                showAllUpcoming = !showAllUpcoming;
+                renderReminders();
+            }
+        }, showAllUpcoming ? "Show less" : `Show ${hidden} more`));
+    }
+    box.replaceChildren(...rows);
 }
 
 // ---------- Piante ----------

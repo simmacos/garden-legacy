@@ -125,6 +125,7 @@ Questa sezione fotografa lo stato visto durante il brainstorming e va aggiornata
 - Quando si registra l'esecuzione (per esempio annaffiatura rapida o completamento di un lavoro), il promemoria attuale scompare; se esiste una frequenza, il successivo viene calcolato dalla nuova data.
 - Per annaffiatura e concimazione si conserva solo l'ultima data, senza storico. Per i lavori si conserva l'ultima data per ciascuna attività.
 - Non sono previste notifiche esterne: gli avvisi appaiono nella dashboard.
+- In dashboard (solo frontend, `dashboard.js`) scaduti e di oggi si mostrano sempre tutti; dei futuri solo i primi 5, gli altri dietro il pulsante "Show N more" / "Show less". Il contatore nell'intestazione è il totale. L'API `/reminders` restituisce sempre tutto.
 
 ## Account
 

@@ -347,6 +347,7 @@ a.brand { text-decoration: none; }
 
 .empty-big p { max-width: 440px; font-size: 16px; }
 .reminders-empty { margin-top: 14px; }
+.reminders-more { margin-top: 14px; }
 
 .fab-bar {
     position: fixed;
