@@ -8,7 +8,7 @@ Applicazione web per la gestione personale di piante e orto, utilizzabile comoda
 
 **Lingua:** l'interfaccia e i messaggi di errore delle API sono in **inglese**. Documentazione e commenti nel codice restano in italiano.
 
-**Stile:** direzione "Field Notebook" (quaderno da campo): bordi netti da 2px, nessun raggio, ombra rigida, Archivo condensato + IBM Plex Mono, accento giallo, rosso per lo scaduto, tema chiaro/scuro. Token e componenti in `public/css/style.css`. Il design di riferimento è in `Garden Legacy design system/` (ignorata da git, solo consultazione).
+**Stile:** direzione "Field Notebook" (quaderno da campo): bordi netti da 2px, nessun raggio, ombra rigida, Archivo condensato + IBM Plex Mono, accento giallo, rosso per lo scaduto, tema chiaro/scuro. Token e componenti in `public/css/style.css`. I font sono self-hosted (`public/fonts/*.woff2`, `@font-face` in cima a `style.css`; stessi file di Google Fonts, sottoinsiemi latin e latin-ext): nessuna richiesta a terzi, e il service worker li tiene in una cache a parte (`garden-fonts-v1`) che non si svuota ai rilasci. Il design di riferimento è in `Garden Legacy design system/` (ignorata da git, solo consultazione).
 
 ## Flusso principale
 

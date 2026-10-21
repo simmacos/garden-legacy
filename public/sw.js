@@ -4,8 +4,18 @@
 //
 // AD OGNI RILASCIO che cambia file statici: aumentare VERSION. Senza, i dispositivi continuano a usare la copia vecchia.
 
-const VERSION = "v6";
+const VERSION = "v7";
 const CACHE = `garden-static-${VERSION}`;
+
+// I font non cambiano da una versione all'altra: stanno in una cache a parte che non si svuota ai rilasci
+// (altrimenti ogni aggiornamento riscaricherebbe ~270 KB su ogni dispositivo).
+const FONT_CACHE = "garden-fonts-v1";
+const FONTS = [
+    "/fonts/archivo-latin.woff2", "/fonts/archivo-latin-ext.woff2",
+    "/fonts/ibm-plex-mono-400-latin.woff2", "/fonts/ibm-plex-mono-400-latin-ext.woff2",
+    "/fonts/ibm-plex-mono-500-latin.woff2", "/fonts/ibm-plex-mono-500-latin-ext.woff2",
+    "/fonts/ibm-plex-mono-600-latin.woff2", "/fonts/ibm-plex-mono-600-latin-ext.woff2"
+];
 
 // File che devono stare TUTTI nella cache, della stessa versione: se uno non si scarica l'installazione fallisce
 // e resta in uso la versione precedente (meglio di un dashboard.js vecchio con un lib.js nuovo).
@@ -29,6 +39,10 @@ self.addEventListener("install", event => {
         const fetchFresh = url => cache.add(new Request(url, { cache: "reload" }));
         await Promise.all(CORE.map(fetchFresh));
         await Promise.allSettled(OPTIONAL.map(fetchFresh));
+
+        // font: si scaricano solo se non ci sono già
+        const fonts = await caches.open(FONT_CACHE);
+        await Promise.allSettled(FONTS.map(async url => { if (!(await fonts.match(url))) await fonts.add(url); }));
         await self.skipWaiting();
     })());
 });
@@ -55,7 +69,7 @@ self.addEventListener("fetch", event => {
 
 /** Prima la copia salvata (istantanea); se non c'è si va in rete e si salva per la prossima volta. */
 async function cacheFirst(request, url) {
-    const cache = await caches.open(CACHE);
+    const cache = await caches.open(url.pathname.startsWith("/fonts/") ? FONT_CACHE : CACHE);
     // la chiave è solo il percorso: /plant.html?id=3 e ?id=7 sono la stessa pagina
     const key = new Request(url.origin + url.pathname);
     const cached = await cache.match(key);
