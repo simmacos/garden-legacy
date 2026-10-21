@@ -30,6 +30,7 @@ export async function api(method, path, body) {
     const data = await res.json().catch(() => null);
 
     if (res.status === 401) {
+        clearCache(); // sessione finita: i dati salvati non vanno mostrati a un altro utente
         window.location.href = "/auth/auth.html";
         throw new ApiError(401, "Login required");
     }
@@ -39,6 +40,61 @@ export async function api(method, path, body) {
         throw new ApiError(res.status, detail || data?.message || "Something went wrong");
     }
     return data;
+}
+
+// ---------- Cache dati ----------
+// Copia locale (localStorage) delle risposte GET: con Cloudflare lento la pagina si disegna subito
+// con l'ultimo stato noto e si aggiorna quando arriva quello fresco. Una sola copia per browser:
+// si svuota quando la sessione finisce (401) e al login, così non passa da un utente all'altro.
+
+const CACHE_PREFIX = "gl-cache:";
+
+/** Ultimo dato salvato per `key` (di solito il path API), oppure null. */
+export function readCache(key) {
+    try {
+        const raw = localStorage.getItem(CACHE_PREFIX + key);
+        return raw === null ? null : JSON.parse(raw);
+    } catch {
+        return null; // storage non disponibile o dato corrotto
+    }
+}
+
+export function writeCache(key, value) {
+    try {
+        localStorage.setItem(CACHE_PREFIX + key, JSON.stringify(value));
+    } catch { /* quota piena o storage bloccato: si lavora senza cache */ }
+}
+
+export function clearCache() {
+    try {
+        for (const key of Object.keys(localStorage)) {
+            if (key.startsWith(CACHE_PREFIX)) localStorage.removeItem(key);
+        }
+    } catch { /* storage non disponibile */ }
+}
+
+/**
+ * GET con copia locale. Se c'è una copia chiama subito `onData(copia)`, poi chiede alla rete e,
+ * se il dato è diverso, lo salva e richiama `onData(dato fresco)`. `onData` va quindi scritta in modo
+ * da poter ridisegnare più volte. Ritorna il dato fresco.
+ * Senza rete e con una copia già mostrata non è un errore: si resta sulla copia (ritorna null).
+ */
+export async function cachedApi(path, onData) {
+    const stored = readCache(path);
+    if (stored !== null) onData(stored);
+
+    let fresh;
+    try {
+        fresh = await api("GET", path);
+    } catch (err) {
+        if (stored !== null && err.status === 0) return null;
+        throw err;
+    }
+    if (JSON.stringify(fresh) !== JSON.stringify(stored)) {
+        writeCache(path, fresh);
+        onData(fresh);
+    }
+    return fresh;
 }
 
 // ---------- Immagini ----------

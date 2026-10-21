@@ -38,7 +38,7 @@
     </main>
 
     <script type="module">
-        import { initThemeToggle } from "/js/lib.js";
+        import { clearCache, initThemeToggle } from "/js/lib.js";
 
         initThemeToggle(document.getElementById("theme-toggle"));
 
@@ -86,6 +86,7 @@
                     console.warn("Password manager non disponibile:", e);
                 }
 
+                clearCache(); // nuovo login: nessun dato di un utente precedente
                 window.location.href = "/dashboard.html";
             } catch (error) {
                 console.error("Network error:", error);
