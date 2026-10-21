@@ -4,7 +4,7 @@
 //
 // AD OGNI RILASCIO che cambia file statici: aumentare VERSION. Senza, i dispositivi continuano a usare la copia vecchia.
 
-const VERSION = "v7";
+const VERSION = "v8";
 const CACHE = `garden-static-${VERSION}`;
 
 // I font non cambiano da una versione all'altra: stanno in una cache a parte che non si svuota ai rilasci

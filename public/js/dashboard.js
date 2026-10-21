@@ -1,5 +1,5 @@
 import {
-    ago, api, cachedApi, chipEl, chipFromDays, dropCache, el, initThemeToggle, shortDate, showError, clearError, todayISO, todayParts, writeCache
+    ago, api, cachedApi, chipFromDays, dropCache, el, initThemeToggle, shortDate, showError, clearError, todayISO, todayParts, writeCache
 } from "/js/lib.js";
 
 // Su mobile il pulsante è nascosto (come nel 4b); la scelta fatta altrove vale comunque.
@@ -22,29 +22,81 @@ let photoVersions = new Map(); // plantId -> updatedAt (ms): serve all'URL con v
 const UPCOMING_LIMIT = 5; // promemoria futuri mostrati prima di "Show more"
 let showAllUpcoming = false;
 
-const REMINDER_CODES ={ watering: "WAT", fertilizing: "FER", task: "TSK" };
+const REMINDER_CODES = { watering: "WAT", fertilizing: "FER", task: "TSK" };
 
-function reminderKind(r) {
-    if (r.type === "watering") return "Water";
-    if (r.type === "fertilizing") return "Feed";
-    return r.taskName;
+const reminderKey = r => `${r.type}:${r.plantId}:${r.taskId ?? ""}`;
+
+// Promemoria appena segnati come fatti, finché il server non risponde:
+// "pending" = pulsante ✓✓ (450 ms), "gone" = riga già nascosta in attesa della risposta.
+const completing = new Map();
+
+function doneUrl(r) {
+    if (r.type === "task") return `/tasks/${r.taskId}/done`;
+    return `/plants/${r.plantId}/${r.type === "watering" ? "water" : "fertilize"}`;
+}
+
+function doneLabel(r) {
+    if (r.type === "task") return `Mark done: ${r.taskName}, ${r.plantName}`;
+    return `Mark done: ${r.type === "watering" ? "water" : "feed"} ${r.plantName}`;
+}
+
+/** Segna il promemoria come fatto: ✓✓ per un attimo, la riga sparisce subito, poi si allinea al server. */
+async function complete(r) {
+    const key = reminderKey(r);
+    if (completing.has(key)) return;
+    completing.set(key, "pending");
+    clearError();
+    renderReminders();
+
+    const shownLongEnough = new Promise(resolve => setTimeout(resolve, 450)).then(() => {
+        if (completing.has(key)) {
+            completing.set(key, "gone");
+            renderReminders();
+        }
+    });
+    try {
+        await api("POST", doneUrl(r));
+        if (r.type === "task") dropCache(`/plants/${r.plantId}/tasks`); // la scheda pianta ha le attività vecchie
+        applyDashboard(await api("GET", "/dashboard"));
+        writeCache("/dashboard", { plants, reminders, photos });
+    } catch (err) {
+        showError(err.message); // la riga ricompare: non è stato registrato
+    } finally {
+        await shownLongEnough;
+        completing.delete(key);
+        render();
+    }
+}
+
+/** "WAT · Oct 14"; per i lavori anche il nome: "TSK · Repot · Oct 24" (una pianta può avere più lavori). */
+function reminderMeta(r) {
+    const parts = [REMINDER_CODES[r.type], ...(r.type === "task" ? [r.taskName] : []), shortDate(r.dueDate)];
+    return parts.join(" · ");
 }
 
 function reminderRow(r) {
-    return el("a", { class: "reminder", href: `/plant.html?id=${r.plantId}` },
-        el("span", { class: "reminder-code" }, REMINDER_CODES[r.type]),
-        el("div", { class: "reminder-main" },
+    const chip = chipFromDays(r.daysUntilDue);
+    const pending = completing.has(reminderKey(r));
+    return el("div", { class: "reminder", "data-s": chip.s },
+        el("a", { class: "reminder-main", href: `/plant.html?id=${r.plantId}` },
             el("div", { class: "reminder-plant" }, r.plantName),
-            el("div", { class: "reminder-meta" }, `${reminderKind(r)} · ${shortDate(r.dueDate)}`)
+            el("div", { class: "reminder-meta" }, reminderMeta(r))
         ),
-        chipEl(chipFromDays(r.daysUntilDue))
+        el("div", { class: "reminder-status" },
+            el("span", { class: "reminder-chip" }, `${chip.glyph} ${chip.label}`),
+            el("button", {
+                class: "reminder-done", type: "button", "aria-label": doneLabel(r), disabled: pending,
+                onclick: () => complete(r)
+            }, pending ? "✓✓" : "✓")
+        )
     );
 }
 
 function renderReminders() {
-    document.getElementById("reminders-count").textContent = reminders.length ? `[${reminders.length}]` : "";
+    const visible = reminders.filter(r => completing.get(reminderKey(r)) !== "gone");
+    document.getElementById("reminders-count").textContent = visible.length ? `[${visible.length}]` : "";
     const box = document.getElementById("reminders");
-    if (!reminders.length) {
+    if (!visible.length) {
         box.replaceChildren(el("div", { class: "empty reminders-empty" },
             el("div", { class: "empty-label" }, "[0] No reminders"),
             el("p", {}, "All caught up. Due dates show up here once a plant has a watering, feeding or task schedule.")
@@ -52,8 +104,8 @@ function renderReminders() {
         return;
     }
     // Scaduti e di oggi sempre tutti; dei futuri solo i primi UPCOMING_LIMIT, il resto dietro il pulsante.
-    const due = reminders.filter(r => r.daysUntilDue <= 0);
-    const upcoming = reminders.filter(r => r.daysUntilDue > 0);
+    const due = visible.filter(r => r.daysUntilDue <= 0);
+    const upcoming = visible.filter(r => r.daysUntilDue > 0);
     const hidden = showAllUpcoming ? 0 : Math.max(0, upcoming.length - UPCOMING_LIMIT);
     const rows = [...due, ...(hidden ? upcoming.slice(0, UPCOMING_LIMIT) : upcoming)].map(reminderRow);
 
@@ -168,6 +220,13 @@ function render() {
  * Piante, promemoria e foto arrivano insieme da /dashboard: prima la copia locale (se c'è), poi la rete.
  * Si ridisegna solo se la rete porta dati diversi.
  */
+function applyDashboard(data) {
+    plants = data.plants;
+    reminders = data.reminders;
+    photos = data.photos;
+    photoVersions = new Map(photos.map(p => [p.plantId, Date.parse(p.updatedAt)]));
+}
+
 async function load() {
     // copie di versioni precedenti dell'app (una richiesta per elenco): non servono più
     ["/plants", "/reminders", "/photos"].forEach(dropCache);
@@ -179,10 +238,7 @@ async function load() {
         await cachedApi("/dashboard", data => {
             // dopo una modifica dalla scheda pianta i promemoria non sono noti (li calcola il server): si aspetta la rete
             if (!data.reminders) return;
-            plants = data.plants;
-            reminders = data.reminders;
-            photos = data.photos;
-            photoVersions = new Map(photos.map(p => [p.plantId, Date.parse(p.updatedAt)]));
+            applyDashboard(data);
             render();
             document.getElementById("content").hidden = false;
         });

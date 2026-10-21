@@ -127,6 +127,7 @@ Questa sezione fotografa lo stato visto durante il brainstorming e va aggiornata
 - Quando si registra l'esecuzione (per esempio annaffiatura rapida o completamento di un lavoro), il promemoria attuale scompare; se esiste una frequenza, il successivo viene calcolato dalla nuova data.
 - Per annaffiatura e concimazione si conserva solo l'ultima data, senza storico. Per i lavori si conserva l'ultima data per ciascuna attività.
 - Non sono previste notifiche esterne: gli avvisi appaiono nella dashboard.
+- Ogni promemoria in dashboard ha un pulsante ✓ (come nel design 4a/4b): segna fatto subito, senza aprire la scheda. Annaffiatura → `POST /plants/:id/water`, concimazione → `/fertilize`, lavoro → `POST /tasks/:id/done`. Il pulsante mostra ✓✓ per 450 ms e la riga sparisce senza aspettare il server (Cloudflare lento); poi la dashboard si riallinea con `GET /dashboard`. Se il server risponde con un errore la riga ricompare con il messaggio. Sotto il nome della pianta: codice e data (`WAT · Oct 14`); per i lavori anche il nome (`TSK · Repot · Oct 24`, tagliato con `…` se lungo). Il pulsante non è una notifica push: quelle non sono previste.
 - In dashboard (solo frontend, `dashboard.js`) scaduti e di oggi si mostrano sempre tutti; dei futuri solo i primi 5, gli altri dietro il pulsante "Show N more" / "Show less". Il contatore nell'intestazione è il totale. L'API `/reminders` restituisce sempre tutto.
 
 ## Account
