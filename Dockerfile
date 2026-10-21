@@ -1,7 +1,9 @@
-# Immagine base: lo stesso node:22-slim di Docker Hub (stesso digest) preso dal mirror ufficiale di AWS.
-# Docker Hub limita i download anonimi per indirizzo IP e i server di GitHub Actions li esauriscono
-# ("429 Too Many Requests"), il mirror no. Per usare Docker Hub: --build-arg NODE_IMAGE=node:22-slim
-ARG NODE_IMAGE=public.ecr.aws/docker/library/node:22-slim
+# Immagine base: node:22-slim di Docker Hub preso dal mirror di Google (senza login).
+# Docker Hub e il mirror AWS (public.ecr.aws) limitano i download anonimi per indirizzo IP e i server di
+# GitHub Actions li esauriscono ("429 Too Many Requests"). Se anche questo mirror viene limitato si può
+# cambiare sorgente senza toccare il file: --build-arg NODE_IMAGE=node:22-slim (Docker Hub) o
+# --build-arg NODE_IMAGE=public.ecr.aws/docker/library/node:22-slim (AWS)
+ARG NODE_IMAGE=mirror.gcr.io/library/node:22-slim
 
 # ---------- Fase 1: build ----------
 # Qui serve tutto il necessario per compilare (TypeScript, tipi, ...). Questa fase NON finisce nell'immagine finale.
