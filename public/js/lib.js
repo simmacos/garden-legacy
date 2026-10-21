@@ -226,8 +226,16 @@ export function chipFromDays(n) {
 /** Stato da ultima data + frequenza; senza uno dei due non c'è scadenza. */
 export function chipFor(last, freq) {
     const days = parseInt(freq, 10);
-    if (!last || !days || days < 1) return { s: "none", glyph: "–", label: "No schedule" };
+    if (!last || !days || days < 1) return { s: "none", glyph: "–", label: "No reminder" };
     return chipFromDays(daysFromToday(last) + days);
+}
+
+/** Come chipFor, ma con la modalità "On a date": la scadenza è la data scelta, non ultima + frequenza. */
+export function chipForDue(mode, last, freq, date) {
+    if (mode === "date") {
+        return date ? chipFromDays(daysFromToday(date)) : { s: "none", glyph: "–", label: "No date" };
+    }
+    return chipFor(last, freq);
 }
 
 export function chipEl(chip) {

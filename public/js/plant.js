@@ -1,5 +1,5 @@
 import {
-    MAX_PHOTO_BYTES, ago, api, cachedApi, chipEl, chipFor, clearError, dropCache, el, initThemeToggle, patchCache,
+    MAX_PHOTO_BYTES, ago, api, cachedApi, chipEl, chipForDue, clearError, dropCache, el, initThemeToggle, patchCache,
     prepareImage, readCache, shortDate, showError, todayISO, writeCache
 } from "/js/lib.js";
 
@@ -29,25 +29,75 @@ function field(labelText, input, extraClass = "") {
     return el("div", { class: `field ${extraClass}`.trim() }, el("label", { for: input.id }, labelText), input);
 }
 
-function createCare(key, title) {
+const NOTE_REPEAT = "Leave “Every” empty for no reminder.";
+const NOTE_DATE = "One-off: once marked done it won’t come back.";
+
+/** Selettore a due pulsanti "Repeat | On a date". `set(mode)` aggiorna quale è attivo. */
+function segmented(onChange) {
+    const buttons = {
+        repeat: el("button", { class: "seg-btn", type: "button", onclick: () => onChange("repeat") }, "Repeat"),
+        date: el("button", { class: "seg-btn", type: "button", onclick: () => onChange("date") }, "On a date")
+    };
+    const root = el("div", { class: "seg", role: "group", "aria-label": "Schedule" }, buttons.repeat, buttons.date);
+    const set = mode => {
+        for (const [name, button] of Object.entries(buttons)) {
+            button.dataset.seg = name === mode ? "1" : "0";
+            button.setAttribute("aria-pressed", String(name === mode));
+        }
+    };
+    return { root, set };
+}
+
+/** La concimazione (`oneOff`) ha anche la modalità "On a date"; l'annaffiatura solo la ricorrenza. */
+function createCare(key, title, oneOff = false) {
     const last = el("input", { class: "input input-mono", id: `${key}-last`, type: "date" });
     const freq = el("input", {
         class: "input input-mono", id: `${key}-freq`, type: "number", min: "1", max: "65535",
         inputmode: "numeric", placeholder: "—"
     });
+    const date = el("input", { class: "input input-mono", id: `${key}-date`, type: "date" });
     const lastLabel = el("div", { class: "care-last" });
     const chipSlot = el("span", {});
+    let mode = "repeat";
+
+    const repeatFields = el("div", { class: "sched" },
+        el("div", { class: "care-fields" }, field("Last done", last), field("Every (days)", freq, "narrow")),
+        oneOff ? el("p", { class: "field-note" }, NOTE_REPEAT) : null
+    );
+    const dateFields = el("div", { class: "sched", hidden: true },
+        el("div", { class: "care-fields" }, field("Date", date)),
+        el("p", { class: "field-note" }, NOTE_DATE)
+    );
+    const seg = oneOff ? segmented(next => { touch(`${key}-mode`); setMode(next); }) : null;
 
     const update = () => {
         lastLabel.textContent = "Last: " + (last.value ? `${shortDate(last.value)} · ${ago(last.value)}` : "Never");
-        chipSlot.replaceChildren(chipEl(chipFor(last.value, freq.value)));
+        chipSlot.replaceChildren(chipEl(chipForDue(mode, last.value, freq.value, date.value)));
+        repeatFields.hidden = mode !== "repeat";
+        dateFields.hidden = mode !== "date";
+        seg?.set(mode);
     };
+    function setMode(next) {
+        mode = next;
+        update();
+    }
     last.addEventListener("input", update);
     freq.addEventListener("input", update);
+    date.addEventListener("input", update);
 
     const done = el("button", {
-        class: "btn btn-accent btn-hard", type: "button",
-        onclick: () => { last.value = todayISO(); last.dispatchEvent(new Event("input", { bubbles: true })); }
+        class: "btn btn-accent btn-hard care-done", type: "button",
+        onclick: () => {
+            last.value = todayISO();
+            // una tantum: una volta fatta torna a "Repeat" e la data si azzera
+            if (mode === "date") {
+                mode = "repeat";
+                date.value = "";
+                touch(`${key}-mode`);
+                date.dispatchEvent(new Event("input", { bubbles: true }));
+            }
+            last.dispatchEvent(new Event("input", { bubbles: true }));
+        }
     }, "Done today");
 
     const root = el("div", { class: "care" },
@@ -55,17 +105,16 @@ function createCare(key, title) {
             el("div", {}, el("div", { class: "care-title" }, title), lastLabel),
             chipSlot
         ),
-        el("div", { class: "care-fields" },
-            field("Last done", last),
-            field("Every (days)", freq, "narrow"),
-            done
-        )
+        seg?.root,
+        repeatFields,
+        dateFields,
+        done
     );
-    return { root, last, freq, update };
+    return { root, last, freq, date, update, getMode: () => mode, setMode };
 }
 
 care.watering = createCare("watering", "Watering");
-care.fertilizing = createCare("fertilizing", "Fertilizing");
+care.fertilizing = createCare("fertilizing", "Fertilizing", true);
 $("care").append(care.watering.root, care.fertilizing.root);
 
 // ---------- Form ----------
@@ -86,8 +135,15 @@ function sortCategories() {
 }
 
 // Campi che l'utente ha toccato: i dati freschi arrivati dalla rete non li sovrascrivono.
-const FORM_FIELDS = ["name", "category", "description", "notes", "watering-last", "watering-freq", "fertilizing-last", "fertilizing-freq"];
-const dirty = new Set();
+const FORM_FIELDS = [
+    "name", "category", "description", "notes", "watering-last", "watering-freq",
+    "fertilizing-last", "fertilizing-freq", "fertilizing-date"
+];
+const dirty = new Set(); // più "fertilizing-mode": il selettore Repeat / On a date non è un campo
+
+function touch(id) {
+    dirty.add(id);
+}
 
 function markDirty(event) {
     if (FORM_FIELDS.includes(event.target.id) && event.target.value !== "__new") dirty.add(event.target.id);
@@ -105,6 +161,8 @@ function fillForm() {
     setField("watering-freq", plant?.wateringIntervalDays);
     setField("fertilizing-last", plant?.lastFertilizedAt);
     setField("fertilizing-freq", plant?.fertilizingIntervalDays);
+    setField("fertilizing-date", plant?.fertilizingDueDate);
+    if (!dirty.has("fertilizing-mode")) care.fertilizing.setMode(plant?.fertilizingDueDate ? "date" : "repeat");
     if (!dirty.has("category")) renderCategorySelect(plant?.categoryId ?? null);
     care.watering.update();
     care.fertilizing.update();
@@ -121,7 +179,9 @@ function readForm() {
         lastWateredAt: care.watering.last.value || null,
         wateringIntervalDays: care.watering.freq.value || null,
         lastFertilizedAt: care.fertilizing.last.value || null,
-        fertilizingIntervalDays: care.fertilizing.freq.value || null
+        fertilizingIntervalDays: care.fertilizing.freq.value || null,
+        // con "On a date" la scadenza è la data; con "Repeat" la data si toglie
+        fertilizingDueDate: care.fertilizing.getMode() === "date" ? care.fertilizing.date.value || null : null
     };
 }
 
@@ -305,7 +365,7 @@ async function save() {
             return;
         }
         plant = await api("PUT", `/plants/${plant.id}`, readForm());
-        dirty.clear(); // il form coincide di nuovo con la pianta salvata
+        dirty.clear(); // il form coincide di nuovo con la pianta salvata (compreso il selettore)
         cachePlantSaved(plant);
         setSaveLabel("✓ Saved", false);
         clearTimeout(savedTimer);
@@ -518,14 +578,21 @@ function replaceTask(updated) {
     tasks = tasks.map(t => (t.id === updated.id ? updated : t));
 }
 
-function taskView(task) {
-    const chip = chipFor(task.lastDoneAt, task.intervalDays);
-    const freq = task.intervalDays ? `every ${task.intervalDays}d` : "no schedule";
+const taskMode = task => (task?.dueDate ? "date" : "repeat");
+
+function taskSummary(task) {
     const last = task.lastDoneAt ? `last ${ago(task.lastDoneAt)}` : "never done";
+    if (task.dueDate) return `once · ${shortDate(task.dueDate)}`;
+    if (!task.intervalDays) return "no reminder" + (task.lastDoneAt ? ` · ${last}` : "");
+    return `every ${task.intervalDays}d · ${last}`;
+}
+
+function taskView(task) {
+    const chip = chipForDue(taskMode(task), task.lastDoneAt, task.intervalDays, task.dueDate);
     return el("div", { class: "task-view" },
         el("div", { class: "task-main" },
             el("div", { class: "task-name" }, task.name),
-            el("div", { class: "task-meta" }, `${freq} · ${last}`)
+            el("div", { class: "task-meta" }, taskSummary(task))
         ),
         chip.s === "none" ? null : chipEl(chip),
         el("div", { class: "task-actions" },
@@ -546,25 +613,52 @@ function taskView(task) {
     );
 }
 
-/** Form per nome + frequenza (modifica o nuova attività). */
-function taskForm({ task, onSave, onCancel, saveLabel: label, nameLabel, placeholder = "" }) {
+let taskFormSeq = 0;
+
+/** Form per una attività (nuova o in modifica): nome, Repeat / On a date, frequenza o data. */
+function taskForm({ task, onSave, onCancel, saveLabel: label, placeholder = "" }) {
+    const n = ++taskFormSeq;
+    let mode = taskMode(task);
     const name = el("input", {
-        class: "input", type: "text", maxlength: "120", placeholder, value: task?.name ?? "", "aria-label": nameLabel
+        class: "input input-task", id: `task-${n}-name`, type: "text", maxlength: "120", placeholder, value: task?.name ?? ""
     });
     const freq = el("input", {
-        class: "input freq", type: "number", min: "1", max: "65535", inputmode: "numeric", placeholder: "days",
-        value: task?.intervalDays ?? "", "aria-label": "Frequency in days (optional)"
+        class: "input input-mono", id: `task-${n}-freq`, type: "number", min: "1", max: "65535", inputmode: "numeric",
+        value: task?.intervalDays ?? ""
     });
+    const date = el("input", { class: "input input-mono", id: `task-${n}-date`, type: "date", value: task?.dueDate ?? "" });
+
+    const repeatFields = el("div", { class: "sched" }, field("Every (days)", freq), el("p", { class: "field-note" }, NOTE_REPEAT));
+    const dateFields = el("div", { class: "sched", hidden: true }, field("Date", date), el("p", { class: "field-note" }, NOTE_DATE));
+    const seg = segmented(next => { mode = next; sync(); });
+    function sync() {
+        repeatFields.hidden = mode !== "repeat";
+        dateFields.hidden = mode !== "date";
+        seg.set(mode);
+    }
+    sync();
+
     const submit = () => {
         if (!name.value.trim()) return name.focus();
-        onSave({ name: name.value.trim(), intervalDays: freq.value || null });
+        // la frequenza resta anche in "On a date" (come nel design); il server la azzera quando il lavoro è fatto
+        onSave({
+            name: name.value.trim(),
+            intervalDays: freq.value || null,
+            dueDate: mode === "date" ? date.value || null : null
+        });
     };
     name.addEventListener("keydown", e => { if (e.key === "Enter") submit(); });
     queueMicrotask(() => name.focus());
-    return el("div", { class: "row inline-form task-edit" },
-        name, freq,
-        el("button", { class: "btn btn-accent", type: "button", onclick: submit }, label),
-        el("button", { class: "btn-text", type: "button", onclick: onCancel }, "Cancel")
+
+    return el("div", { class: "task-form" },
+        field("Task name", name),
+        seg.root,
+        repeatFields,
+        dateFields,
+        el("div", { class: "task-form-actions" },
+            el("button", { class: "btn btn-accent", type: "button", onclick: submit }, label),
+            el("button", { class: "btn-text", type: "button", onclick: onCancel }, "Cancel")
+        )
     );
 }
 
@@ -574,7 +668,7 @@ function renderTasks() {
     $("tasks-list").replaceChildren(...tasks.map(task => el("div", { class: "task" },
         editingTaskId === task.id
             ? taskForm({
-                task, saveLabel: "Save", nameLabel: "Task name",
+                task, saveLabel: "Save",
                 onCancel: () => { editingTaskId = null; renderTasks(); },
                 onSave: body => taskAction(async () => {
                     replaceTask(await api("PUT", `/tasks/${task.id}`, body));
@@ -586,7 +680,7 @@ function renderTasks() {
 
     $("task-add").replaceChildren(addingTask
         ? taskForm({
-            saveLabel: "Add", nameLabel: "New task name", placeholder: "e.g. Repotting",
+            saveLabel: "Add task", placeholder: "e.g. Repotting",
             onCancel: () => { addingTask = false; renderTasks(); },
             onSave: body => taskAction(async () => {
                 tasks.push(await api("POST", `/plants/${plant.id}/tasks`, body));
