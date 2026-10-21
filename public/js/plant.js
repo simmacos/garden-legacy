@@ -1,5 +1,6 @@
 import {
-    MAX_PHOTO_BYTES, ago, api, chipEl, chipFor, clearError, el, initThemeToggle, prepareImage, shortDate, showError, todayISO
+    MAX_PHOTO_BYTES, ago, api, cachedApi, chipEl, chipFor, clearError, dropCache, el, initThemeToggle, patchCache,
+    prepareImage, readCache, shortDate, showError, todayISO, writeCache
 } from "/js/lib.js";
 
 const $ = id => document.getElementById(id);
@@ -9,7 +10,7 @@ const isNew = rawId === null;
 
 let plant = null;          // pianta salvata (solo in modifica)
 let categories = [];       // [{ id, name }]
-let allPlants = [];        // per i conteggi delle categorie
+let allPlants = [];        // per i conteggi delle categorie (solo dopo che /plants è arrivata)
 let tasks = [];
 let editingTaskId = null;
 let addingTask = false;
@@ -46,7 +47,7 @@ function createCare(key, title) {
 
     const done = el("button", {
         class: "btn btn-accent btn-hard", type: "button",
-        onclick: () => { last.value = todayISO(); update(); }
+        onclick: () => { last.value = todayISO(); last.dispatchEvent(new Event("input", { bubbles: true })); }
     }, "Done today");
 
     const root = el("div", { class: "care" },
@@ -84,15 +85,27 @@ function sortCategories() {
     categories.sort((a, b) => a.name.localeCompare(b.name));
 }
 
+// Campi che l'utente ha toccato: i dati freschi arrivati dalla rete non li sovrascrivono.
+const FORM_FIELDS = ["name", "category", "description", "notes", "watering-last", "watering-freq", "fertilizing-last", "fertilizing-freq"];
+const dirty = new Set();
+
+function markDirty(event) {
+    if (FORM_FIELDS.includes(event.target.id) && event.target.value !== "__new") dirty.add(event.target.id);
+}
+$("plant-page").addEventListener("input", markDirty);
+$("plant-page").addEventListener("change", markDirty);
+
+/** Riempie il form dalla pianta (o vuoto se nuova), saltando i campi che l'utente ha già modificato. */
 function fillForm() {
-    $("name").value = plant?.name ?? "";
-    $("description").value = plant?.description ?? "";
-    $("notes").value = plant?.notes ?? "";
-    care.watering.last.value = plant?.lastWateredAt ?? "";
-    care.watering.freq.value = plant?.wateringIntervalDays ?? "";
-    care.fertilizing.last.value = plant?.lastFertilizedAt ?? "";
-    care.fertilizing.freq.value = plant?.fertilizingIntervalDays ?? "";
-    renderCategorySelect(plant?.categoryId ?? null);
+    const setField = (id, value) => { if (!dirty.has(id)) $(id).value = value ?? ""; };
+    setField("name", plant?.name);
+    setField("description", plant?.description);
+    setField("notes", plant?.notes);
+    setField("watering-last", plant?.lastWateredAt);
+    setField("watering-freq", plant?.wateringIntervalDays);
+    setField("fertilizing-last", plant?.lastFertilizedAt);
+    setField("fertilizing-freq", plant?.fertilizingIntervalDays);
+    if (!dirty.has("category")) renderCategorySelect(plant?.categoryId ?? null);
     care.watering.update();
     care.fertilizing.update();
     updateInitial();
@@ -114,6 +127,43 @@ function readForm() {
 
 function updateInitial() {
     $("photo-initial").textContent = $("name").value.trim().charAt(0).toUpperCase() || "P";
+}
+
+// ---------- Copia locale dei dati (vedi cachedApi in lib.js) ----------
+// Dopo ogni modifica le copie si aggiornano, così dashboard e schede non mostrano lo stato vecchio.
+
+const byName = (a, b) => a.name.localeCompare(b.name);
+
+/** Pianta creata o salvata. */
+function cachePlantSaved(saved) {
+    writeCache(`/plants/${saved.id}`, saved);
+    patchCache("/plants", list => [...list.filter(p => p.id !== saved.id), saved].sort(byName));
+    allPlants = [...allPlants.filter(p => p.id !== saved.id), saved].sort(byName);
+    dropCache("/reminders"); // le date sono cambiate: i promemoria li ricalcola il server
+}
+
+function cachePlantDeleted(id) {
+    patchCache("/plants", list => list.filter(p => p.id !== id));
+    patchCache("/photos", list => list.filter(p => p.plantId !== id));
+    dropCache(`/plants/${id}`);
+    dropCache(`/plants/${id}/tasks`);
+    dropCache("/reminders");
+}
+
+function cacheTasks() {
+    writeCache(`/plants/${plant.id}/tasks`, tasks);
+    dropCache("/reminders");
+}
+
+function cachePhotoSaved(plantId, saved) {
+    patchCache("/photos", list => [...list.filter(p => p.plantId !== plantId), { plantId, updatedAt: saved.updatedAt }]);
+}
+
+/** Categoria rinominata (`category` = { id, name }) o eliminata (`category` = null): si allineano le piante. */
+function cachePlantCategories(categoryId, category) {
+    const patch = p => (p.categoryId === categoryId ? { ...p, categoryId: category ? categoryId : null, category } : p);
+    patchCache("/plants", list => list.map(patch));
+    allPlants = allPlants.map(patch);
 }
 
 // ---------- Foto ----------
@@ -174,6 +224,7 @@ async function onPhotoChosen(input) {
     setPhotoBusy(true);
     try {
         const saved = await uploadPhoto(plant.id, file);
+        cachePhotoSaved(plant.id, saved);
         photoVersion = Date.parse(saved.updatedAt);
         renderPhoto();
     } catch (err) {
@@ -231,10 +282,11 @@ async function save() {
     try {
         if (isNew) {
             const created = await api("POST", "/plants", readForm());
+            cachePlantSaved(created);
             if (pendingPhoto) {
                 setSaveLabel("Uploading photo…", true);
                 try {
-                    await uploadPhoto(created.id, pendingPhoto);
+                    cachePhotoSaved(created.id, await uploadPhoto(created.id, pendingPhoto));
                 } catch (err) {
                     // la pianta esiste già: si apre la sua scheda e lì si mostra l'errore
                     flash(`Plant saved, but the photo could not be uploaded: ${err.message}`);
@@ -244,6 +296,8 @@ async function save() {
             return;
         }
         plant = await api("PUT", `/plants/${plant.id}`, readForm());
+        dirty.clear(); // il form coincide di nuovo con la pianta salvata
+        cachePlantSaved(plant);
         setSaveLabel("✓ Saved", false);
         clearTimeout(savedTimer);
         savedTimer = setTimeout(() => setSaveLabel(saveLabel(), false), 1800);
@@ -280,9 +334,11 @@ $("new-cat-create").addEventListener("click", async () => {
     clearError();
     try {
         const created = await api("POST", "/categories", { name });
+        patchCache("/categories", list => [...list, created].sort(byName));
         categories.push({ id: created.id, name: created.name });
         sortCategories();
         renderCategorySelect(created.id);
+        dirty.add("category");
         closeNewCategory();
     } catch (err) {
         showError(err.message);
@@ -317,6 +373,7 @@ function openDeleteDialog() {
                     event.currentTarget.disabled = true;
                     try {
                         await api("DELETE", `/plants/${plant.id}`);
+                        cachePlantDeleted(plant.id);
                         window.location.href = "/dashboard.html";
                     } catch (err) {
                         dialog.close();
@@ -375,6 +432,8 @@ function categoryRow(category, rerender) {
             if (!name) return input.focus();
             try {
                 const updated = await api("PUT", `/categories/${category.id}`, { name });
+                patchCache("/categories", list => list.map(c => (c.id === updated.id ? updated : c)).sort(byName));
+                cachePlantCategories(updated.id, { id: updated.id, name: updated.name });
                 category.name = updated.name;
                 sortCategories();
                 renderCategorySelect($("category").value || null);
@@ -404,9 +463,10 @@ function categoryRow(category, rerender) {
                     onclick: async () => {
                         try {
                             await api("DELETE", `/categories/${category.id}`);
+                            patchCache("/categories", list => list.filter(c => c.id !== category.id));
+                            cachePlantCategories(category.id, null);
                             const selected = $("category").value;
                             categories = categories.filter(c => c.id !== category.id);
-                            allPlants.forEach(p => { if (p.categoryId === category.id) p.categoryId = null; });
                             renderCategorySelect(selected === String(category.id) ? null : selected || null);
                             confirmingId = null;
                             rerender();
@@ -438,6 +498,7 @@ async function taskAction(fn) {
     clearError();
     try {
         await fn();
+        cacheTasks();
         renderTasks();
     } catch (err) {
         showError(err.message);
@@ -534,44 +595,106 @@ function showNotFound() {
     $("plant-page").hidden = true;
 }
 
+/**
+ * Ogni dato arriva prima dalla copia locale (se c'è) e poi dalla rete. La scheda si disegna appena ci sono
+ * categorie, pianta e foto; la pianta può partire anche dall'elenco già salvato dalla dashboard.
+ * Le attività compaiono quando arrivano. I dati freschi non toccano i campi che l'utente ha modificato.
+ */
 async function init() {
-    try {
-        if (!isNew && !/^\d+$/.test(rawId)) return showNotFound();
+    if (!isNew && !/^\d+$/.test(rawId)) return showNotFound();
+    const id = isNew ? null : Number(rawId);
 
-        const requests = [api("GET", "/categories"), api("GET", "/plants")];
-        if (!isNew) {
-            requests.push(api("GET", `/plants/${rawId}`), api("GET", `/plants/${rawId}/tasks`), api("GET", "/photos"));
+    const ready = new Set();
+    const needed = isNew ? ["categories"] : ["categories", "plant", "photos"];
+    let shown = false;
+    let tasksShown = false;
+    let queued = false;
+
+    const render = () => {
+        queued = false;
+        if (!shown) {
+            if (!needed.every(key => ready.has(key))) return;
+            fillForm();
+            renderPhoto();
+            showFlash();
+            setSaveLabel(saveLabel(), false);
+            saveButtons.forEach(b => { b.hidden = false; });
+            $("save-bar").hidden = false;
+            $("plant-page").hidden = false;
+            if (isNew) $("tasks-hint").hidden = false;
+            shown = true;
         }
-        const [cats, plants, one, taskList, photos] = await Promise.all(requests);
-        categories = cats.map(c => ({ id: c.id, name: c.name }));
-        allPlants = plants;
-        if (!isNew) {
-            plant = one;
-            tasks = taskList;
-            const photo = photos.find(p => p.plantId === plant.id);
-            photoVersion = photo ? Date.parse(photo.updatedAt) : null;
-            document.title = `${plant.name} · Garden Legacy`;
+        if (!isNew && !tasksShown && ready.has("tasks")) {
+            $("tasks-section").hidden = false;
+            $("delete-box").hidden = false;
+            tasksShown = true;
+            renderTasks();
         }
-    } catch (err) {
-        if (err.status === 404) return showNotFound();
-        if (err.status !== 401) showError(err.message);
-        return;
+    };
+    // le copie arrivano nello stesso istante: un solo disegno
+    const got = key => {
+        ready.add(key);
+        if (!queued) {
+            queued = true;
+            queueMicrotask(render);
+        }
+    };
+
+    const onCategories = data => {
+        categories = data.map(c => ({ id: c.id, name: c.name }));
+        if (shown) renderCategorySelect(dirty.has("category") ? $("category").value : plant?.categoryId ?? null);
+        got("categories");
+    };
+    const onPlants = data => {
+        allPlants = data;
+        $("manage-cats").disabled = false; // i conteggi delle categorie servono l'elenco completo
+    };
+    const onPlant = data => {
+        if (plant && data.updatedAt < plant.updatedAt) return; // copia più vecchia di quella già in uso
+        plant = data;
+        document.title = `${plant.name} · Garden Legacy`;
+        if (shown) fillForm();
+        got("plant");
+    };
+    const onTasks = data => {
+        tasks = data;
+        if (tasksShown && editingTaskId === null && !addingTask) renderTasks();
+        got("tasks");
+    };
+    const onPhotos = data => {
+        const before = photoVersion;
+        const photo = data.find(p => p.plantId === id);
+        photoVersion = photo ? Date.parse(photo.updatedAt) : null;
+        if (shown && !pendingPhotoUrl && photoVersion !== before) renderPhoto();
+        got("photos");
+    };
+
+    $("manage-cats").disabled = true;
+
+    if (!isNew) {
+        // la scheda parte dalla copia più recente tra la pianta salvata e l'elenco della dashboard
+        const seed = [readCache(`/plants/${id}`), readCache("/plants")?.find(p => p.id === id)]
+            .filter(Boolean)
+            .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
+        if (seed) onPlant(seed);
     }
 
-    fillForm();
-    renderPhoto();
-    showFlash();
-    setSaveLabel(saveLabel(), false);
-    saveButtons.forEach(b => { b.hidden = false; });
-    $("save-bar").hidden = false;
-    $("plant-page").hidden = false;
-
-    if (isNew) {
-        $("tasks-hint").hidden = false;
-    } else {
-        $("tasks-section").hidden = false;
-        $("delete-box").hidden = false;
-        renderTasks();
+    try {
+        const requests = [cachedApi("/categories", onCategories), cachedApi("/plants", onPlants)];
+        if (!isNew) {
+            requests.push(
+                cachedApi(`/plants/${id}`, onPlant),
+                cachedApi(`/plants/${id}/tasks`, onTasks),
+                cachedApi("/photos", onPhotos)
+            );
+        }
+        await Promise.all(requests);
+    } catch (err) {
+        if (err.status === 404) {
+            if (!isNew) cachePlantDeleted(id); // cancellata altrove: la copia locale non vale più
+            return showNotFound();
+        }
+        if (err.status !== 401) showError(err.message);
     }
 }
 

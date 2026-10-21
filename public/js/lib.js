@@ -65,6 +65,18 @@ export function writeCache(key, value) {
     } catch { /* quota piena o storage bloccato: si lavora senza cache */ }
 }
 
+export function dropCache(key) {
+    try {
+        localStorage.removeItem(CACHE_PREFIX + key);
+    } catch { /* storage non disponibile */ }
+}
+
+/** Cambia la copia di `key` con `fn(copia) -> nuova copia`; senza copia non fa nulla. */
+export function patchCache(key, fn) {
+    const stored = readCache(key);
+    if (stored !== null) writeCache(key, fn(stored));
+}
+
 export function clearCache() {
     try {
         for (const key of Object.keys(localStorage)) {

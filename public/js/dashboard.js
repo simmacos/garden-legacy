@@ -188,6 +188,9 @@ async function load() {
         if (have.size === 3) scheduleRender();
     };
 
+    // Le categorie servono alla scheda pianta: si scaldano qui, così la prima scheda aperta è già istantanea
+    cachedApi("/categories", () => {}).catch(() => {});
+
     try {
         await Promise.all([
             cachedApi("/plants", receive("plants", data => { plants = data; })),
