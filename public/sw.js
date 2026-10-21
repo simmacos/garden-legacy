@@ -4,7 +4,7 @@
 //
 // AD OGNI RILASCIO che cambia file statici: aumentare VERSION. Senza, i dispositivi continuano a usare la copia vecchia.
 
-const VERSION = "v3";
+const VERSION = "v4";
 const CACHE = `garden-static-${VERSION}`;
 
 // File che devono stare TUTTI nella cache, della stessa versione: se uno non si scarica l'installazione fallisce

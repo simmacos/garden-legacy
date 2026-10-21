@@ -1,5 +1,5 @@
 import {
-    ago, api, chipEl, chipFromDays, el, initThemeToggle, shortDate, showError, clearError, todayISO, todayParts
+    ago, api, cachedApi, chipEl, chipFromDays, el, initThemeToggle, shortDate, showError, clearError, todayISO, todayParts, writeCache
 } from "/js/lib.js";
 
 // Su mobile il pulsante è nascosto (come nel 4b); la scelta fatta altrove vale comunque.
@@ -78,6 +78,9 @@ async function water(plant, button) {
     try {
         Object.assign(plant, await api("POST", `/plants/${plant.id}/water`));
         reminders = await api("GET", "/reminders");
+        // la copia locale segue la modifica, così alla prossima apertura non si vede lo stato vecchio
+        writeCache("/plants", plants);
+        writeCache("/reminders", reminders);
         render();
     } catch (err) {
         button.disabled = false;
@@ -161,14 +164,38 @@ function render() {
     renderGroups();
 }
 
+/**
+ * Ogni elenco arriva prima dalla copia locale (se c'è) e poi dalla rete. Si disegna quando li si ha tutti e tre
+ * (da copia o dalla rete) e di nuovo se la rete porta dati diversi.
+ */
 async function load() {
+    const have = new Set();
+    let renderQueued = false;
+
+    // le copie arrivano nello stesso istante: un solo disegno invece di tre
+    const scheduleRender = () => {
+        if (renderQueued) return;
+        renderQueued = true;
+        queueMicrotask(() => {
+            renderQueued = false;
+            render();
+            document.getElementById("content").hidden = false;
+        });
+    };
+    const receive = (key, apply) => data => {
+        apply(data);
+        have.add(key);
+        if (have.size === 3) scheduleRender();
+    };
+
     try {
-        const [plantList, reminderList, photos] = await Promise.all([api("GET", "/plants"), api("GET", "/reminders"), api("GET", "/photos")]);
-        plants = plantList;
-        reminders = reminderList;
-        photoVersions = new Map(photos.map(p => [p.plantId, Date.parse(p.updatedAt)]));
-        render();
-        document.getElementById("content").hidden = false;
+        await Promise.all([
+            cachedApi("/plants", receive("plants", data => { plants = data; })),
+            cachedApi("/reminders", receive("reminders", data => { reminders = data; })),
+            cachedApi("/photos", receive("photos", data => {
+                photoVersions = new Map(data.map(p => [p.plantId, Date.parse(p.updatedAt)]));
+            }))
+        ]);
     } catch (err) {
         if (err.status !== 401) showError(err.message);
     }

@@ -99,6 +99,8 @@ Foto nella scheda pianta (`plant.html`, come la sezione 4c del design): box 4:5 
 
 Foto nelle card della dashboard (come 4a/4b del design): area foto 150px su desktop; su mobile 120px con foto e 72px senza; senza foto iniziale grande e "+ ADD PHOTO". La dashboard legge `GET /photos` per costruire gli URL con versione.
 
+**Cache dati (lato browser):** `cachedApi` in `lib.js` tiene in `localStorage` (chiavi `gl-cache:<path>`) l'ultima risposta dei GET; la dashboard si disegna subito con la copia e si ridisegna se la rete porta dati diversi, senza indicatori. La copia si svuota su 401 e al login (una sola per browser, mai tra utenti diversi). Dopo una modifica che cambia questi dati (es. annaffiatura) va aggiornata con `writeCache`. Motivo: Cloudflare nei picchi impiega secondi (issue #3).
+
 **Regola di lavoro per la UI:** misure, testi e comportamento si prendono dal file di design (`Garden Legacy design system/`, sezioni 4a/4b/4c). I due file coincidono su 4a/4b; su 4c vale `Garden Legacy.dc.html` (il più recente: "Take photo" solo mobile, secondo pulsante "Upload photo").
 
 Mancano: un'azione "rimuovi foto" nella UI (l'API `DELETE` esiste, il design non la prevede), logout. Il `README.md` (in inglese) descrive l'app, l'avvio in sviluppo, la configurazione e l'API; la guida di deploy è in `deploy/README.md`.
