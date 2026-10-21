@@ -28,7 +28,7 @@ Ogni pianta appartiene a un solo account e può avere una sola categoria, oppure
 - data dell'ultima annaffiatura;
 - frequenza di annaffiatura in giorni, facoltativa;
 - data dell'ultima concimazione;
-- frequenza di concimazione in giorni, facoltativa;
+- frequenza di concimazione in giorni, facoltativa, **oppure** una scadenza singola ("On a date", vedi Attività e promemoria);
 - più attività/lavori associati alla pianta.
 
 L'annaffiatura rapida dalla dashboard registra/aggiorna la data dell'ultima annaffiatura. Per annaffiatura e concimazione si conserva solo la data più recente, senza uno storico degli eventi.
@@ -59,6 +59,8 @@ Tutti i parametri sono costanti in cima a `photo.ts`. Limiti: upload max 12 MB, 
 - Per annaffiatura, concimazione e ciascun lavoro si può impostare facoltativamente una frequenza in giorni.
 - I promemoria sono avvisi visibili nella dashboard; non sono richieste notifiche esterne.
 - Una pianta può avere più lavori vari distinti. Ogni lavoro ha un **nome**, può essere modificato e può avere un intervallo in giorni facoltativo. Non è previsto un campo descrizione per il singolo lavoro.
+- **Scadenza singola ("On a date", issue #2, design 4c):** la concimazione e ogni lavoro (non l'annaffiatura) possono avere, al posto della ricorrenza, **una sola data**. Nella scheda pianta un selettore **Repeat | On a date** sceglie la modalità: Repeat = "ultima volta" + "ogni N giorni"; On a date = un solo campo data, con la nota "One-off: once marked done it won't come back". Le due modalità sono alternative: se c'è una data, il promemoria è quella data (vince su ultima + frequenza). La modalità non è salvata a parte: è "On a date" se la data è presente (`plants.fertilizingDueDate`, `plant_tasks.dueDate`, `DATEONLY` nullable), altrimenti Repeat.
+- Quando una scadenza singola viene segnata come fatta (pulsante "Done today" / "Done", ✓ in dashboard, `POST /plants/:id/fertilize`, `POST /tasks/:id/done`): la data si azzera, l'ultima esecuzione diventa oggi e si torna a Repeat. **Differenza voluta (come nel design):** per i lavori si azzera anche la frequenza, quindi non torna nulla; per la concimazione la frequenza resta, quindi se ne era stata impostata una la pianta riprende a ripetersi da oggi (senza frequenza non torna nulla).
 - Ogni lavoro conserva la data dell'ultima esecuzione, come annaffiatura e concimazione. La data resta vuota finché l'attività non viene registrata per la prima volta; in seguito può essere aggiornata dall'utente.
 - Segnare un lavoro come eseguito aggiorna la sua data dell'ultima esecuzione; il promemoria corrente scompare e il prossimo si calcola da quella data usando la frequenza configurata.
 
@@ -75,7 +77,8 @@ La base è Node.js/TypeScript con Moleculer, Sequelize e MariaDB. Sono implement
   - **cookie** `auth_token`: `HttpOnly; SameSite=Lax; Path=/; Max-Age=30 giorni` (**sessione scorrevole**, `src/lib/session.ts`: a ogni uso autenticato la scadenza torna a 30 giorni da adesso e il gateway rinnova anche il cookie nel browser, al massimo una volta al giorno; dopo 30 giorni senza usare l'app scade; **limite assoluto di 180 giorni dal login**, oltre serve un nuovo login; `auth.resolveToken` ritorna `{ user, renewal? }`, `sessions.renew` sposta la scadenza), più `Secure` quando la richiesta è HTTPS (`COOKIE_SECURE=auto`, default; `true`/`false` per forzarlo). Su HTTP semplice (non localhost) `Secure` farebbe scartare il cookie al browser, quindi non va forzato lì. La risposta di login ha `Cache-Control: no-store`;
   - **dietro reverse proxy** impostare `TRUST_PROXY` = numero di proxy fidati davanti all'app (`true` = 1; con Cloudflare + Nginx Proxy Manager = `2`): l'IP del client è l'N-esimo valore di `X-Forwarded-For` **contando da destra** (i valori a sinistra li scrive il client) e `X-Forwarded-Proto` dà l'HTTPS; con meno valori dei proxy dichiarati si usa l'indirizzo della connessione. Senza `TRUST_PROXY` quegli header sono ignorati. `.env` viene caricato all'avvio (`src/index.ts`). Limite noto: con la porta dell'app raggiungibile direttamente (soluzione A del deploy) un dispositivo della LAN che falsifica `X-Forwarded-For` aggira il rate limiting;
   - password in chiaro per scelta (uso interno), nessun logout per ora.
-- logica condivisa in `src/lib/` (date, validazione, calcolo promemoria, elaborazione foto, rate limiting, info client).
+- logica condivisa in `src/lib/` (date, validazione, calcolo promemoria, elaborazione foto, rate limiting, info client, `schema.ts`);
+- **schema del database:** le tabelle mancanti le crea `sync` di Sequelize all'avvio, ma `sync` non modifica quelle esistenti. Per i campi aggiunti dopo (`plants.fertilizingDueDate`, `plant_tasks.dueDate`) `ensureColumns()` (`src/lib/schema.ts`), chiamata nel `started` di `plants` e `plantTasks`, aggiunge le colonne mancanti: solo colonne nullable, solo aggiunte (mai modifiche o cancellazioni), idempotente, con una riga di log `Database: added column(s) to ...`. Così un aggiornamento che aggiunge un campo non richiede un `ALTER TABLE` a mano. Per un nuovo campo facoltativo: aggiungerlo al modello e al `ensureColumns` del servizio. **Prima del primo riavvio dopo un aggiornamento che aggiunge colonne fare un backup** (vedi `deploy/README.md`); servono i permessi `ALTER` sul database (l'utente MariaDB del compose è proprietario del DB, li ha);
 
 Build e avvio:
 
@@ -96,6 +99,8 @@ Frontend (HTML/CSS/JS semplici in `public/`, moduli ES, nessun build):
 - `js/lib.js` (API, DOM senza `innerHTML`, date, chip di stato, tema), `js/dashboard.js`, `js/plant.js`, `js/theme.js` (tema prima del paint).
 
 Foto nella scheda pianta (`plant.html`, come la sezione 4c del design): box 4:5 con la foto (o segnaposto con iniziale), pulsanti "Take photo" (`capture="environment"`, solo mobile/touch) e "Upload photo" (sempre; su desktop è l'unico, a tutta larghezza). In modifica la foto si carica subito (la scheda ridimensiona prima le foto grandi a 2048px con `prepareImage` in `lib.js`); in creazione si vede un'anteprima locale e l'upload parte dopo il primo salvataggio (se fallisce, l'errore compare nella scheda della pianta appena creata).
+
+Scheda pianta, scadenza singola (design 4c): la sezione Cura ha il selettore **Repeat | On a date** solo per la concimazione (l'annaffiatura resta solo ricorrente); lo stesso selettore c'è nei form dei lavori ("+ Add task" e modifica, pannello tratteggiato con nome, selettore, campi, **Add task / Save** + Cancel). Chip: `No date`, `Overdue Nd`, `Today`, `In N days` (`chipForDue` in `lib.js`; senza ricorrenza né data `No reminder`). Riga del lavoro: `every 30d · last 20d ago`, `once · Oct 24`, `no reminder · last today`. Il selettore concimazione rientra nel tracciamento dei campi modificati (`dirty`, id virtuale `fertilizing-mode`). La frequenza resta salvata anche in "On a date" (il campo si nasconde soltanto). **Nota:** nel prototipo del design un lavoro ricorrente nuovo parte con "ultima volta = oggi"; nel progetto vale la regola concordata (data vuota fino alla prima registrazione).
 
 Foto nelle card della dashboard (come 4a/4b del design): area foto 150px su desktop; su mobile 120px con foto e 72px senza; senza foto iniziale grande e "+ ADD PHOTO". La dashboard legge le foto da `GET /dashboard` (stesso elenco di `GET /photos`) per costruire gli URL con versione.
 
@@ -122,7 +127,7 @@ Questa sezione fotografa lo stato visto durante il brainstorming e va aggiornata
 
 - Le frequenze sono numeri interi di giorni e sono facoltative, separatamente per annaffiatura, concimazione e ciascun lavoro.
 - Il promemoria si mostra il giorno della scadenza. In dashboard l'ordine è: promemoria scaduti (più vecchi prima), promemoria in scadenza oggi, poi quelli futuri più vicini.
-- Se non è stata ancora inserita una data dell'ultima esecuzione, non si mostra alcun promemoria per quell'attività.
+- Se non è stata ancora inserita una data dell'ultima esecuzione, non si mostra alcun promemoria per quell'attività (vale per le ricorrenze; una scadenza singola ha il promemoria anche senza ultima esecuzione).
 - La data dell'ultima esecuzione resta vuota fino alla prima registrazione dell'attività; in quel momento viene impostata alla data corrente, modificabile dall'utente.
 - Quando si registra l'esecuzione (per esempio annaffiatura rapida o completamento di un lavoro), il promemoria attuale scompare; se esiste una frequenza, il successivo viene calcolato dalla nuova data.
 - Per annaffiatura e concimazione si conserva solo l'ultima data, senza storico. Per i lavori si conserva l'ultima data per ciascuna attività.

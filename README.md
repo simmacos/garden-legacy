@@ -5,7 +5,7 @@ A small self-hosted web app to keep track of your plants and garden: what to wat
 ## Features
 
 - **Plants grouped by category**: dashboard with one-tap watering.
-- **Reminders** for watering, fertilizing and custom per-plant tasks (e.g. pruning), each with an optional interval in days. Sorted overdue → today → upcoming.
+- **Reminders** for watering, fertilizing and custom per-plant tasks (e.g. pruning), each with an optional interval in days. Fertilizing and tasks can also be **one-off**: pick *On a date* instead of *Repeat* and set a single due date. Sorted overdue → today → upcoming. Each reminder has a ✓ button on the dashboard to mark it done in place.
 - **One photo per plant**, taken with the phone camera or uploaded. It is processed on the server into a vivid pixel-art image (a few KB) and stored in the database.
 - **Multi-user**: each account only sees its own data.
 - Responsive UI in plain HTML/CSS/JS, no frontend build step.
@@ -69,13 +69,15 @@ JSON under `/api`; everything except login requires the session cookie. A resour
 | `GET /reminders` | Upcoming and overdue reminders, sorted by due date |
 | `GET /dashboard` | Plants, reminders and photo list in one response (what the dashboard needs) |
 
+One-off dates: a plant has `fertilizingDueDate` and a task has `dueDate` (`YYYY-MM-DD` or `null`). When set, that date is the reminder date (it wins over last + interval). Marking the item done (`/fertilize`, `/tasks/:id/done`) clears the date and sets the last date to today; for a task the interval is cleared too.
+
 ## Project structure
 
 ```
 src/
   index.ts            entry point (Moleculer broker)
   models/             Sequelize models
-  lib/                dates, validation, reminders, photo processing, rate limiting, client info
+  lib/                dates, validation, reminders, photo processing, rate limiting, client info, schema upgrades
   services/           gateway, auth, reminders, dashboard
   services/data/      DB-backed services: users, sessions, categories, plants, tasks, photos
 public/               static frontend (HTML, CSS, ES modules)
@@ -94,7 +96,7 @@ Dockerfile            multi-stage image, runs as non-root
 - Internal-use app: passwords are stored in plain text, there is no sign-up and no logout.
 - Sessions last 30 days and renew themselves while you use the app (at most once a day); they end after 30 days of inactivity or 180 days after login.
 - Login is rate-limited (5 failures per IP+user and 20 per IP in 15 minutes) with counters kept in memory.
-- The DB schema is created with Sequelize `sync` (no migrations).
+- The DB schema is created with Sequelize `sync` (no migrations). `sync` only creates missing tables, so columns added later (`plants.fertilizingDueDate`, `plant_tasks.dueDate`) are added by the app itself at startup (`ensureColumns`: nullable columns only, never changes or drops anything). Back up the DB before the first restart after such an update.
 - No automated tests yet.
 
 ## License

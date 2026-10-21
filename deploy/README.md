@@ -74,6 +74,17 @@ Dopo ogni push su `main` GitHub costruisce la nuova immagine (1-2 minuti, scheda
 In Dockge: stack `garden` → **Update** (scarica l'immagine nuova e ricrea solo i container cambiati).
 I dati non si toccano.
 
+**Aggiornamenti che aggiungono colonne al database:** al primo avvio l'app le aggiunge da sola (campi facoltativi,
+solo aggiunte, nessun dato modificato o cancellato; nel log del container compare
+`Database: added column(s) to ...`). Funziona senza fare nulla a mano, ma **fai un backup prima** (sezione sotto).
+Succede con la scadenza singola di concimazione e lavori (`plants.fertilizingDueDate`, `plant_tasks.dueDate`).
+Per controllare dopo l'aggiornamento:
+```bash
+docker compose logs app | grep "Database: added"
+docker compose exec db sh -c 'mariadb -uroot -p"$MARIADB_ROOT_PASSWORD" garden -e "SHOW COLUMNS FROM plant_tasks LIKE \"dueDate\""'
+```
+Il rollback a un'immagine vecchia resta possibile: le colonne in più vengono semplicemente ignorate.
+
 ### Tornare a una versione precedente
 Ogni immagine ha anche il tag con il commit (`sha-xxxxxxx`, visibile nella pagina del pacchetto su GitHub).
 Nel `.env` dello stack: `GARDEN_IMAGE=ghcr.io/simmacos/garden-legacy:sha-xxxxxxx` e *Update*.
