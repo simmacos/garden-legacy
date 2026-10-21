@@ -130,39 +130,48 @@ function updateInitial() {
 }
 
 // ---------- Copia locale dei dati (vedi cachedApi in lib.js) ----------
-// Dopo ogni modifica le copie si aggiornano, così dashboard e schede non mostrano lo stato vecchio.
+// Piante e foto stanno nella copia di /dashboard, la stessa della dashboard. Dopo ogni modifica si aggiorna;
+// `reminders: null` = "da ricalcolare": li calcola il server, e la dashboard aspetta la rete.
 
 const byName = (a, b) => a.name.localeCompare(b.name);
+
+function patchDashboard(fn) {
+    patchCache("/dashboard", data => ({ ...fn(data), reminders: null }));
+}
 
 /** Pianta creata o salvata. */
 function cachePlantSaved(saved) {
     writeCache(`/plants/${saved.id}`, saved);
-    patchCache("/plants", list => [...list.filter(p => p.id !== saved.id), saved].sort(byName));
+    patchDashboard(data => ({ ...data, plants: [...data.plants.filter(p => p.id !== saved.id), saved].sort(byName) }));
     allPlants = [...allPlants.filter(p => p.id !== saved.id), saved].sort(byName);
-    dropCache("/reminders"); // le date sono cambiate: i promemoria li ricalcola il server
 }
 
 function cachePlantDeleted(id) {
-    patchCache("/plants", list => list.filter(p => p.id !== id));
-    patchCache("/photos", list => list.filter(p => p.plantId !== id));
+    patchDashboard(data => ({
+        ...data,
+        plants: data.plants.filter(p => p.id !== id),
+        photos: data.photos.filter(p => p.plantId !== id)
+    }));
     dropCache(`/plants/${id}`);
     dropCache(`/plants/${id}/tasks`);
-    dropCache("/reminders");
 }
 
 function cacheTasks() {
     writeCache(`/plants/${plant.id}/tasks`, tasks);
-    dropCache("/reminders");
+    patchDashboard(data => data);
 }
 
 function cachePhotoSaved(plantId, saved) {
-    patchCache("/photos", list => [...list.filter(p => p.plantId !== plantId), { plantId, updatedAt: saved.updatedAt }]);
+    patchDashboard(data => ({
+        ...data,
+        photos: [...data.photos.filter(p => p.plantId !== plantId), { plantId, updatedAt: saved.updatedAt }]
+    }));
 }
 
 /** Categoria rinominata (`category` = { id, name }) o eliminata (`category` = null): si allineano le piante. */
 function cachePlantCategories(categoryId, category) {
     const patch = p => (p.categoryId === categoryId ? { ...p, categoryId: category ? categoryId : null, category } : p);
-    patchCache("/plants", list => list.map(patch));
+    patchDashboard(data => ({ ...data, plants: data.plants.map(patch) }));
     allPlants = allPlants.map(patch);
 }
 
@@ -673,19 +682,22 @@ async function init() {
 
     if (!isNew) {
         // la scheda parte dalla copia più recente tra la pianta salvata e l'elenco della dashboard
-        const seed = [readCache(`/plants/${id}`), readCache("/plants")?.find(p => p.id === id)]
+        const seed = [readCache(`/plants/${id}`), readCache("/dashboard")?.plants.find(p => p.id === id)]
             .filter(Boolean)
             .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
         if (seed) onPlant(seed);
     }
 
     try {
-        const requests = [cachedApi("/categories", onCategories), cachedApi("/plants", onPlants)];
+        // /dashboard dà l'elenco completo delle piante (conteggi categorie) e le foto in una richiesta sola
+        const requests = [cachedApi("/categories", onCategories), cachedApi("/dashboard", data => {
+            onPlants(data.plants);
+            if (!isNew) onPhotos(data.photos);
+        })];
         if (!isNew) {
             requests.push(
                 cachedApi(`/plants/${id}`, onPlant),
-                cachedApi(`/plants/${id}/tasks`, onTasks),
-                cachedApi("/photos", onPhotos)
+                cachedApi(`/plants/${id}/tasks`, onTasks)
             );
         }
         await Promise.all(requests);

@@ -79,7 +79,10 @@ export default class WebUIService extends Service {
                             "PUT /plants/:id/photo": { type: "stream", action: "plantPhotos.save" },
                             "DELETE /plants/:id/photo": "plantPhotos.remove",
 
-                            "GET /reminders": "reminders.list"
+                            "GET /reminders": "reminders.list",
+
+                            // Piante + promemoria + foto in una richiesta sola (dashboard e scheda pianta)
+                            "GET /dashboard": "dashboard.get"
                         }
                     },
 

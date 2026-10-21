@@ -1,5 +1,5 @@
 import {
-    ago, api, cachedApi, chipEl, chipFromDays, el, initThemeToggle, shortDate, showError, clearError, todayISO, todayParts, writeCache
+    ago, api, cachedApi, chipEl, chipFromDays, dropCache, el, initThemeToggle, shortDate, showError, clearError, todayISO, todayParts, writeCache
 } from "/js/lib.js";
 
 // Su mobile il pulsante è nascosto (come nel 4b); la scelta fatta altrove vale comunque.
@@ -14,6 +14,7 @@ document.getElementById("today-label").append(
 
 let plants = [];
 let reminders = [];
+let photos = [];               // [{ plantId, updatedAt }]: dati grezzi, per la copia locale
 let photoVersions = new Map(); // plantId -> updatedAt (ms): serve all'URL con versione della foto
 
 // ---------- Promemoria ----------
@@ -79,8 +80,7 @@ async function water(plant, button) {
         Object.assign(plant, await api("POST", `/plants/${plant.id}/water`));
         reminders = await api("GET", "/reminders");
         // la copia locale segue la modifica, così alla prossima apertura non si vede lo stato vecchio
-        writeCache("/plants", plants);
-        writeCache("/reminders", reminders);
+        writeCache("/dashboard", { plants, reminders, photos });
         render();
     } catch (err) {
         button.disabled = false;
@@ -165,40 +165,27 @@ function render() {
 }
 
 /**
- * Ogni elenco arriva prima dalla copia locale (se c'è) e poi dalla rete. Si disegna quando li si ha tutti e tre
- * (da copia o dalla rete) e di nuovo se la rete porta dati diversi.
+ * Piante, promemoria e foto arrivano insieme da /dashboard: prima la copia locale (se c'è), poi la rete.
+ * Si ridisegna solo se la rete porta dati diversi.
  */
 async function load() {
-    const have = new Set();
-    let renderQueued = false;
-
-    // le copie arrivano nello stesso istante: un solo disegno invece di tre
-    const scheduleRender = () => {
-        if (renderQueued) return;
-        renderQueued = true;
-        queueMicrotask(() => {
-            renderQueued = false;
-            render();
-            document.getElementById("content").hidden = false;
-        });
-    };
-    const receive = (key, apply) => data => {
-        apply(data);
-        have.add(key);
-        if (have.size === 3) scheduleRender();
-    };
+    // copie di versioni precedenti dell'app (una richiesta per elenco): non servono più
+    ["/plants", "/reminders", "/photos"].forEach(dropCache);
 
     // Le categorie servono alla scheda pianta: si scaldano qui, così la prima scheda aperta è già istantanea
     cachedApi("/categories", () => {}).catch(() => {});
 
     try {
-        await Promise.all([
-            cachedApi("/plants", receive("plants", data => { plants = data; })),
-            cachedApi("/reminders", receive("reminders", data => { reminders = data; })),
-            cachedApi("/photos", receive("photos", data => {
-                photoVersions = new Map(data.map(p => [p.plantId, Date.parse(p.updatedAt)]));
-            }))
-        ]);
+        await cachedApi("/dashboard", data => {
+            // dopo una modifica dalla scheda pianta i promemoria non sono noti (li calcola il server): si aspetta la rete
+            if (!data.reminders) return;
+            plants = data.plants;
+            reminders = data.reminders;
+            photos = data.photos;
+            photoVersions = new Map(photos.map(p => [p.plantId, Date.parse(p.updatedAt)]));
+            render();
+            document.getElementById("content").hidden = false;
+        });
     } catch (err) {
         if (err.status !== 401) showError(err.message);
     }

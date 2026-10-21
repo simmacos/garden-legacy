@@ -67,6 +67,7 @@ JSON under `/api`; everything except login requires the session cookie. A resour
 | `GET/POST /plants/:id/tasks` · `PUT/DELETE /tasks/:id` · `POST /tasks/:id/done` | Per-plant tasks |
 | `GET /photos` · `GET/PUT/DELETE /plants/:id/photo` | Photos; `PUT` takes the raw image file as body (max 12 MB) |
 | `GET /reminders` | Upcoming and overdue reminders, sorted by due date |
+| `GET /dashboard` | Plants, reminders and photo list in one response (what the dashboard needs) |
 
 ## Project structure
 
@@ -75,7 +76,7 @@ src/
   index.ts            entry point (Moleculer broker)
   models/             Sequelize models
   lib/                dates, validation, reminders, photo processing, rate limiting, client info
-  services/           gateway, auth, reminders
+  services/           gateway, auth, reminders, dashboard
   services/data/      DB-backed services: users, sessions, categories, plants, tasks, photos
 public/               static frontend (HTML, CSS, ES modules)
 deploy/               production compose file + home-server guide
