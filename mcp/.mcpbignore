@@ -1,0 +1,4 @@
+# File esclusi dal pacchetto .mcpb
+README.md
+*.mcpb
+package-lock.json

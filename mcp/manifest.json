@@ -1,0 +1,67 @@
+{
+  "$schema": "https://raw.githubusercontent.com/modelcontextprotocol/mcpb/main/schemas/mcpb-manifest-v0.3.schema.json",
+  "manifest_version": "0.3",
+  "name": "garden-legacy",
+  "display_name": "Garden Legacy",
+  "version": "0.0.1",
+  "description": "Read plants and reminders, log watering, fertilizing and tasks in Garden Legacy.",
+  "long_description": "Connects Claude to your Garden Legacy app. Claude can list plants, categories and reminders, mark watering, fertilizing and tasks as done, and create or edit plants, tasks and categories. Nothing can be deleted from here.",
+  "author": { "name": "simmacos" },
+  "repository": { "type": "git", "url": "https://github.com/simmacos/garden-legacy" },
+  "homepage": "https://github.com/simmacos/garden-legacy",
+  "icon": "icon.png",
+  "server": {
+    "type": "node",
+    "entry_point": "server.mjs",
+    "mcp_config": {
+      "command": "node",
+      "args": ["${__dirname}/server.mjs"],
+      "env": {
+        "GARDEN_URL": "${user_config.garden_url}",
+        "GARDEN_USER": "${user_config.username}",
+        "GARDEN_PASS": "${user_config.password}"
+      }
+    }
+  },
+  "tools": [
+    { "name": "list_reminders", "description": "Reminders sorted by due date" },
+    { "name": "list_plants", "description": "All plants" },
+    { "name": "get_plant", "description": "One plant with its tasks" },
+    { "name": "list_categories", "description": "Plant categories" },
+    { "name": "water_plant", "description": "Log a watering" },
+    { "name": "fertilize_plant", "description": "Log a fertilizing" },
+    { "name": "complete_task", "description": "Mark a task as done" },
+    { "name": "create_plant", "description": "Add a plant" },
+    { "name": "update_plant", "description": "Edit a plant" },
+    { "name": "create_category", "description": "Add a category" },
+    { "name": "add_task", "description": "Add a task to a plant" },
+    { "name": "update_task", "description": "Edit a task" }
+  ],
+  "user_config": {
+    "garden_url": {
+      "type": "string",
+      "title": "App address",
+      "description": "Address of your Garden Legacy app",
+      "default": "https://garden.cocchy.casa",
+      "required": true
+    },
+    "username": {
+      "type": "string",
+      "title": "Username",
+      "description": "Your Garden Legacy username",
+      "required": true
+    },
+    "password": {
+      "type": "string",
+      "title": "Password",
+      "description": "Your Garden Legacy password",
+      "sensitive": true,
+      "required": true
+    }
+  },
+  "compatibility": {
+    "platforms": ["darwin", "win32", "linux"],
+    "runtimes": { "node": ">=20.0.0" }
+  },
+  "license": "ISC"
+}

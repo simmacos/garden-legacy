@@ -108,6 +108,8 @@ Foto nelle card della dashboard (come 4a/4b del design): area foto 150px su desk
 
 **Regola di lavoro per la UI:** misure, testi e comportamento si prendono dal file di design (`Garden Legacy design system/`, sezioni 4a/4b/4c). I due file coincidono su 4a/4b; su 4c vale `Garden Legacy.dc.html` (il più recente: "Take photo" solo mobile, secondo pulsante "Upload photo").
 
+**Server MCP** (`mcp/`, pacchetto separato, JS senza build, fuori dall'immagine Docker): server stdio per Claude Code / Claude Desktop che usa le API REST facendo login come il browser (cookie in memoria, nuovo login su 401); nessuna modifica al backend. Tool di lettura, cura (annaffia/concima/lavoro fatto), creazione e modifica di piante, lavori e categorie; **nessuna eliminazione**, di proposito. Configurazione in `mcp/README.md` (`GARDEN_URL`, `GARDEN_USER`, `GARDEN_PASS`). Per Claude Desktop c'è anche l'estensione `.mcpb` (`mcp/manifest.json`, `npm run pack` in `mcp/`; il file generato è ignorato da git): all'installazione chiede indirizzo, utente e password. Dopo una modifica a `server.mjs` aumentare `version` in `manifest.json`.
+
 Mancano: un'azione "rimuovi foto" nella UI (l'API `DELETE` esiste, il design non la prevede), logout. Il `README.md` (in inglese) descrive l'app, l'avvio in sviluppo, la configurazione e l'API; la guida di deploy è in `deploy/README.md`.
 
 Questa sezione fotografa lo stato visto durante il brainstorming e va aggiornata quando il codice cambia.
