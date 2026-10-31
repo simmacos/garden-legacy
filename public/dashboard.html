@@ -27,10 +27,15 @@
 
     <div class="layout" id="content" hidden>
         <aside aria-labelledby="reminders-title">
-            <div class="section-head">
-                <h2 class="h-section" id="reminders-title">Reminders</h2>
-                <span class="count" id="reminders-count"></span>
-            </div>
+            <h2 class="fold-heading">
+                <button class="section-head fold-head" id="reminders-toggle" type="button" aria-expanded="true">
+                    <span class="fold-title">
+                        <span class="h-section" id="reminders-title">Reminders</span>
+                        <span class="count" id="reminders-count"></span>
+                    </span>
+                    <span class="fold-state" id="reminders-state"></span>
+                </button>
+            </h2>
             <div id="reminders"></div>
         </aside>
         <main id="groups"></main>

@@ -192,6 +192,54 @@ input:focus-visible, textarea:focus-visible, select:focus-visible { outline-offs
     padding-bottom: 6px;
 }
 
+/* Intestazione richiudibile (design 7b): tutta la riga è il pulsante */
+.fold-heading { margin: 0; font: inherit; }
+
+.fold-head {
+    width: 100%;
+    gap: 12px;
+    min-height: 52px;
+    padding: 14px 0 6px;
+    background: none;
+    border-width: 0 0 2px;
+    border-radius: 0;
+    color: var(--ink);
+    text-align: left;
+    cursor: pointer;
+}
+
+.fold-head:disabled { cursor: default; }
+.fold-title { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+.fold-state { flex: none; font: 600 12px var(--font-mono); text-transform: uppercase; text-decoration: underline; }
+
+.fold-peek {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 56px;
+    margin-top: 10px;
+    padding: 8px 12px;
+    border: 2px dashed var(--line);
+    border-radius: 0;
+    background: transparent;
+    color: var(--ink);
+    text-align: left;
+    cursor: pointer;
+}
+
+.fold-names {
+    flex: 1;
+    min-width: 0;
+    font: 500 13px/1.4 var(--font-mono);
+    color: var(--ink-2);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.fold-more { margin-top: 10px; }
+
 /* ---------- Buttons ---------- */
 
 .btn {
@@ -393,8 +441,8 @@ a.brand { text-decoration: none; }
 .reminder-done:disabled { cursor: default; }
 
 
-.group { margin-bottom: 40px; }
-.group .section-head { margin-bottom: 18px; }
+.group { margin-bottom: 20px; }
+.group .fold-head[aria-expanded="true"] { margin-bottom: 18px; }
 
 .cards {
     display: grid;
@@ -733,8 +781,8 @@ dialog.dlg::backdrop { background: var(--backdrop); }
 
     .layout { flex-direction: column; align-items: stretch; gap: 0; padding: 20px 16px calc(110px + env(safe-area-inset-bottom)); }
     .layout > aside { width: 100%; margin-bottom: 30px; }
-    .group { margin-bottom: 30px; }
-    .group .section-head { margin-bottom: 14px; }
+    .group { margin-bottom: 14px; }
+    .group .fold-head[aria-expanded="true"] { margin-bottom: 14px; }
     .h-section { font-size: 22px; }
     .cards { grid-template-columns: 1fr; gap: 16px; }
     .card-cat { display: none; }

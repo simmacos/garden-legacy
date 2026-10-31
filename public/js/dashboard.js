@@ -17,8 +17,29 @@ let reminders = [];
 let photos = [];               // [{ plantId, updatedAt }]: dati grezzi, per la copia locale
 let photoVersions = new Map(); // plantId -> updatedAt (ms): serve all'URL con versione della foto
 
+// ---------- Sezioni chiuse (design 7b) ----------
+
+// Ricordate per dispositivo: chiavi delle sezioni chiuse ("reminders", "category:<id>"). Di default è tutto aperto.
+const FOLD_KEY = "gl-folded";
+
+function loadFolded() {
+    try {
+        return new Set(JSON.parse(localStorage.getItem(FOLD_KEY)) ?? []);
+    } catch (e) {
+        return new Set(); // solo preferenza
+    }
+}
+
+const folded = loadFolded();
+
+function toggleFold(key) {
+    if (!folded.delete(key)) folded.add(key);
+    try { localStorage.setItem(FOLD_KEY, JSON.stringify([...folded])); } catch (e) { /* solo preferenza */ }
+}
+
 // ---------- Promemoria ----------
 
+const REMINDERS_FOLD = "reminders";
 const UPCOMING_LIMIT = 5; // promemoria futuri mostrati prima di "Show more"
 let showAllUpcoming = false;
 
@@ -92,15 +113,37 @@ function reminderRow(r) {
     );
 }
 
+const visibleReminders = () => reminders.filter(r => completing.get(reminderKey(r)) !== "gone");
+
 function renderReminders() {
-    const visible = reminders.filter(r => completing.get(reminderKey(r)) !== "gone");
+    const visible = visibleReminders();
+    const isFolded = folded.has(REMINDERS_FOLD);
     document.getElementById("reminders-count").textContent = visible.length ? `[${visible.length}]` : "";
+    // Senza promemoria non c'è niente da chiudere: resta il messaggio, senza "Fold"
+    const toggle = document.getElementById("reminders-toggle");
+    toggle.disabled = !visible.length;
+    toggle.setAttribute("aria-expanded", String(!isFolded || !visible.length));
+    document.getElementById("reminders-state").textContent =
+        !visible.length ? "" : isFolded ? `All [${visible.length}] +` : "Fold −";
     const box = document.getElementById("reminders");
     if (!visible.length) {
         box.replaceChildren(el("div", { class: "empty reminders-empty" },
             el("div", { class: "empty-label" }, "[0] No reminders"),
             el("p", {}, "All caught up. Due dates show up here once a plant has a watering, feeding or task schedule.")
         ));
+        return;
+    }
+    if (isFolded) {
+        // Chiuso: resta il più urgente (l'elenco arriva già ordinato) e un pulsante per il resto
+        const more = visible.length - 1;
+        box.replaceChildren(reminderRow(visible[0]), ...(more ? [el("button", {
+            class: "btn btn-dashed fold-more",
+            type: "button",
+            onclick: () => {
+                toggleReminders();
+                toggle.focus(); // il pulsante è appena sparito
+            }
+        }, `+ ${more} more reminder${more === 1 ? "" : "s"}`)] : []));
         return;
     }
     // Scaduti e di oggi sempre tutti; dei futuri solo i primi UPCOMING_LIMIT, il resto dietro il pulsante.
@@ -122,6 +165,13 @@ function renderReminders() {
     }
     box.replaceChildren(...rows);
 }
+
+function toggleReminders() {
+    toggleFold(REMINDERS_FOLD);
+    renderReminders();
+}
+
+document.getElementById("reminders-toggle").addEventListener("click", toggleReminders);
 
 // ---------- Piante ----------
 
@@ -181,7 +231,7 @@ function groupByCategory(list) {
     const groups = new Map();
     for (const plant of list) {
         const key = plant.category?.id ?? 0;
-        if (!groups.has(key)) groups.set(key, { name: plant.category?.name ?? "Uncategorized", plants: [] });
+        if (!groups.has(key)) groups.set(key, { key: `category:${key}`, name: plant.category?.name ?? "Uncategorized", plants: [] });
         groups.get(key).plants.push(plant);
     }
     return [...groups.entries()]
@@ -200,15 +250,43 @@ function renderGroups() {
         ));
         return;
     }
-    box.replaceChildren(...groupByCategory(plants).map(group =>
-        el("section", { class: "group" },
-            el("div", { class: "section-head" },
-                el("h2", { class: "h-section" }, group.name),
-                el("span", { class: "count" }, `[${group.plants.length}]`)
-            ),
-            el("div", { class: "cards" }, group.plants.map(plantCard))
-        )
-    ));
+    box.replaceChildren(...groupByCategory(plants).map(groupSection));
+}
+
+function groupSection(group) {
+    const isFolded = folded.has(group.key);
+    const toggle = () => {
+        toggleFold(group.key);
+        renderGroups();
+        // la sezione è stata ridisegnata: il focus resta sull'intestazione
+        [...document.querySelectorAll("#groups .fold-head")].find(head => head.dataset.fold === group.key)?.focus();
+    };
+    return el("section", { class: "group" },
+        el("h2", { class: "fold-heading" },
+            el("button", {
+                class: "section-head fold-head", type: "button", "data-fold": group.key,
+                "aria-expanded": String(!isFolded), onclick: toggle
+            },
+                el("span", { class: "fold-title" },
+                    el("span", { class: "h-section" }, group.name),
+                    el("span", { class: "count" }, `[${group.plants.length}]`)
+                ),
+                el("span", { class: "fold-state" }, isFolded ? "Open +" : "Fold −")
+            )
+        ),
+        isFolded ? foldPeek(group, toggle) : el("div", { class: "cards" }, group.plants.map(plantCard))
+    );
+}
+
+/** Categoria chiusa: nomi delle piante e, se serve, quanti promemoria scaduti o di oggi contiene. */
+function foldPeek(group, toggle) {
+    const ids = new Set(group.plants.map(plant => plant.id));
+    const due = visibleReminders().filter(r => r.daysUntilDue <= 0 && ids.has(r.plantId));
+    const late = due.some(r => r.daysUntilDue < 0);
+    return el("button", { class: "fold-peek", type: "button", onclick: toggle },
+        el("span", { class: "fold-names" }, group.plants.map(plant => plant.name).join(" · ")),
+        due.length > 0 && el("span", { class: "chip", "data-s": late ? "late" : "today" }, `${late ? "◆" : "●"} ${due.length} due`)
+    );
 }
 
 function render() {
