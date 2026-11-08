@@ -67,12 +67,13 @@ async function complete(r) {
     if (completing.has(key)) return;
     completing.set(key, "pending");
     clearError();
-    renderReminders();
+    render();
 
+    // render() e non solo renderReminders(): anche il badge "N due" delle categorie chiuse deve seguire la riga
     const shownLongEnough = new Promise(resolve => setTimeout(resolve, 450)).then(() => {
         if (completing.has(key)) {
             completing.set(key, "gone");
-            renderReminders();
+            render();
         }
     });
     try {
