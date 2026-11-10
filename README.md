@@ -1,23 +1,30 @@
 # Garden Legacy
 
-A small self-hosted web app to keep track of your plants and garden: what to water, what to feed, what needs doing, with a photo of each plant. Made for phones and desktops, with a "field notebook" look and light/dark themes.
+A little notebook for your plants.
 
-## Features
+![The Garden Legacy dashboard: reminders on the left, plant cards with photos grouped by category](docs/dashboard.png)
 
-- **Plants grouped by category**: dashboard with one-tap watering.
-- **Reminders** for watering, fertilizing and custom per-plant tasks (e.g. pruning), each with an optional interval in days. Fertilizing and tasks can also be **one-off**: pick *On a date* instead of *Repeat* and set a single due date. Sorted overdue → today → upcoming. Each reminder has a ✓ button on the dashboard to mark it done in place.
-- **One photo per plant**, taken with the phone camera or uploaded. It is processed on the server into a vivid pixel-art image (a few KB) and stored in the database.
-- **Multi-user**: each account only sees its own data.
-- Responsive UI in plain HTML/CSS/JS, no frontend build step.
-- **Installable as an app** (PWA): on Android, Chrome → menu → *Install app* gives a home-screen icon and a full-screen window. Static files are cached for offline opening; API data never is.
+Garden Legacy is a small self-hosted web app that remembers the things you'd otherwise forget: which plant got water last Tuesday, when the lemon tree needs feeding, that the basil is due for repotting. Each plant gets a photo, a few notes and its own schedule. It works just as well on a phone in the garden as on a desktop at the kitchen table, and it looks like a field notebook: sharp borders, a bit of yellow, and light and dark themes.
 
-## Tech stack
+I built it for myself and my household, so it's deliberately simple.
 
-Node.js · TypeScript · [Moleculer](https://moleculer.services) (services + `moleculer-web` gateway) · Sequelize · MariaDB · [sharp](https://sharp.pixelplumbing.com) · Docker.
+## What it does
 
-## Quick start (development)
+- **A dashboard that tells you what to do today.** Plants are grouped by category, and reminders for watering, fertilizing and custom tasks are sorted from overdue to upcoming. Tap ✓ on a reminder to mark it done without opening the plant.
+- **Flexible schedules.** Watering, fertilizing and every task can repeat every *N* days, or you can leave the interval empty. Fertilizing and tasks can also be one-offs: choose *On a date* instead of *Repeat* and set a single due date.
+- **Custom tasks for each plant.** Pruning, repotting, treating the aphids: name it, give it an interval if you want one, and tick it off when it's done.
+- **One photo per plant.** Take it with your phone camera or upload a file. The server turns it into a small, vivid pixel-art picture (a few KB) and keeps it in the database. The original is never stored, so backups stay tiny.
+- **Several people, separate gardens.** Every account only sees its own plants and categories.
+- **Installable.** On Android, use Chrome's menu → *Install app* for a home-screen icon and a full-screen window. The interface opens from a local copy even when the network is slow. Your data is always fetched fresh from the server.
+- **No frontend build.** The UI is plain HTML, CSS and ES modules in `public/`.
 
-Requires Node.js ≥ 20 and Docker.
+## Under the hood
+
+Node.js · TypeScript · [Moleculer](https://moleculer.services) (services plus the `moleculer-web` gateway) · Sequelize · MariaDB · [sharp](https://sharp.pixelplumbing.com) · Docker.
+
+## Try it locally
+
+You'll need Node.js 20 or newer and Docker.
 
 ```bash
 cd dev-compose && docker compose up -d && cd ..   # MariaDB (3306) + Adminer (http://localhost:8080)
@@ -26,52 +33,62 @@ npm install
 npm run dev                                       # http://localhost:4005
 ```
 
-Tables are created on first start. There is no sign-up: create the first user in the database (passwords are stored as plain text, see [Known limitations](#known-limitations)):
+The tables are created on first start. Since there's no sign-up page, add your first user straight in the database (passwords are plain text, see [Things to know](#things-to-know)):
 
 ```bash
 docker exec garden-db mariadb -usimmaco -psimmacopass garden -e \
   "INSERT INTO users (username,password,isActive,createdAt,updatedAt) VALUES ('demo','demo123',1,NOW(),NOW());"
 ```
 
+Then open http://localhost:4005 and log in as `demo`.
+
 ## Configuration
 
-Environment variables (see `.env.example`; a `.env` file is loaded at startup, real environment variables win):
+The app reads a handful of environment variables (see `.env.example`). A `.env` file is loaded at startup, and real environment variables take precedence.
 
-| Variable | Default | Description |
+| Variable | Default | What it's for |
 |---|---|---|
-| `DB_DIALECT`, `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USER`, `DB_PASSWORD` | – | Database connection (required). In Docker, `DB_HOST` is the DB service name. |
+| `DB_DIALECT`, `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USER`, `DB_PASSWORD` | – | Database connection, all required. Inside Docker, `DB_HOST` is the name of the DB service, not `localhost`. |
 | `WEB_UI_PORT` | `4005` | HTTP port. |
-| `TRUST_PROXY` | `false` | Number of trusted reverse proxies in front of the app (`true` = 1, e.g. `2` for Cloudflare + Nginx). Used for the client IP (rate limiting) and HTTPS detection. |
-| `COOKIE_SECURE` | `auto` | `Secure` flag of the session cookie: `auto` (only on HTTPS), `true`, `false`. |
+| `TRUST_PROXY` | `false` | How many reverse proxies sit in front of the app (`true` = 1; Cloudflare + Nginx is `2`). Used to find the real client IP for rate limiting and to detect HTTPS. |
+| `COOKIE_SECURE` | `auto` | `Secure` flag of the session cookie: `auto` (only on HTTPS), `true` or `false`. |
 
 ## Scripts
 
-| Command | |
+| Command | What it does |
 |---|---|
 | `npm run dev` | Run from `src/` with ts-node |
-| `npm run typecheck` | Type-check only |
+| `npm run typecheck` | Check types only |
 | `npm run build` | Compile `src/` into `dist/` |
-| `npm run icons` | Regenerate the PWA icons in `public/img/` from `favicon.svg` |
 | `npm start` | Run the compiled app (`dist/index.js`) |
+| `npm run icons` | Regenerate the PWA icons in `public/img/` from `favicon.svg` |
+
+## Deploying
+
+Every push to `main` builds an image and publishes it as `ghcr.io/simmacos/garden-legacy` (amd64). The [`deploy/`](deploy/README.md) folder has a production compose file (app + MariaDB) and a step-by-step guide for running it with Dockge behind Nginx Proxy Manager and Cloudflare, including backups and rollbacks.
+
+## Talk to your garden from Claude
+
+The [`mcp/`](mcp/README.md) folder has a small MCP server so Claude Code or Claude Desktop can use the app for you. You can ask what needs water today, say "I just fertilized the ficus", or add a new plant. It logs in like the browser does, so the backend doesn't change. It deliberately can't delete anything. For Claude Desktop there's also a one-click `.mcpb` extension.
 
 ## API
 
-JSON under `/api`; everything except login requires the session cookie. A resource owned by another user answers `404`.
+Everything is JSON under `/api`, and everything except login needs the session cookie. A resource that belongs to someone else answers `404`.
 
-| | |
+| Endpoint | Purpose |
 |---|---|
 | `POST /auth/login` · `GET /me` | Sign in · current user |
 | `GET/POST /categories` · `PUT/DELETE /categories/:id` | Categories (deleting one keeps its plants) |
 | `GET/POST /plants` · `GET/PUT/DELETE /plants/:id` | Plants |
-| `POST /plants/:id/water` · `POST /plants/:id/fertilize` | Record watering / fertilizing (optional `date`, default today) |
+| `POST /plants/:id/water` · `POST /plants/:id/fertilize` | Record watering or fertilizing (optional `date`, default today) |
 | `GET/POST /plants/:id/tasks` · `PUT/DELETE /tasks/:id` · `POST /tasks/:id/done` | Per-plant tasks |
-| `GET /photos` · `GET/PUT/DELETE /plants/:id/photo` | Photos; `PUT` takes the raw image file as body (max 12 MB) |
-| `GET /reminders` | Upcoming and overdue reminders, sorted by due date |
-| `GET /dashboard` | Plants, reminders and photo list in one response (what the dashboard needs) |
+| `GET /photos` · `GET/PUT/DELETE /plants/:id/photo` | Photos; `PUT` takes the raw image file as the body (max 12 MB) |
+| `GET /reminders` | Overdue and upcoming reminders, sorted by due date |
+| `GET /dashboard` | Plants, reminders and photo list in a single response |
 
-One-off dates: a plant has `fertilizingDueDate` and a task has `dueDate` (`YYYY-MM-DD` or `null`). When set, that date is the reminder date (it wins over last + interval). Marking the item done (`/fertilize`, `/tasks/:id/done`) clears the date and sets the last date to today; for a task the interval is cleared too.
+**One-off dates:** a plant has `fertilizingDueDate` and a task has `dueDate` (`YYYY-MM-DD` or `null`). When set, that date *is* the reminder and wins over "last time + interval". Marking the item done (`/fertilize`, `/tasks/:id/done`) clears the date and sets the last date to today. For a task the interval is cleared too, so it doesn't come back.
 
-## Project structure
+## Where things live
 
 ```
 src/
@@ -81,23 +98,19 @@ src/
   services/           gateway, auth, reminders, dashboard
   services/data/      DB-backed services: users, sessions, categories, plants, tasks, photos
 public/               static frontend (HTML, CSS, ES modules)
+mcp/                  MCP server for Claude
 deploy/               production compose file + home-server guide
 dev-compose/          MariaDB + Adminer for development
 Dockerfile            multi-stage image, runs as non-root
-.github/workflows/    builds and publishes the image to GHCR on every push to main
+.github/workflows/    builds and publishes the image to GHCR
 ```
 
-## Deployment
+## Things to know
 
-`docker.yml` publishes `ghcr.io/simmacos/garden-legacy` (amd64) on every push to `main`. [`deploy/`](deploy/README.md) has the production compose file (app + MariaDB) and a step-by-step guide for Dockge behind Nginx Proxy Manager and Cloudflare, including backups and rollback.
+This is an internal-use app, and some choices reflect that:
 
-## Known limitations
-
-- Internal-use app: passwords are stored in plain text, there is no sign-up and no logout.
-- Sessions last 30 days and renew themselves while you use the app (at most once a day); they end after 30 days of inactivity or 180 days after login.
-- Login is rate-limited (5 failures per IP+user and 20 per IP in 15 minutes) with counters kept in memory.
-- The DB schema is created with Sequelize `sync` (no migrations). `sync` only creates missing tables, so columns added later (`plants.fertilizingDueDate`, `plant_tasks.dueDate`) are added by the app itself at startup (`ensureColumns`: nullable columns only, never changes or drops anything). Back up the DB before the first restart after such an update.
-- No automated tests yet.
+- **Sessions** last 30 days and renew themselves while you use the app (at most once a day). They end after 30 days of inactivity, or 180 days after login.
+- **Login is rate-limited**: 5 failures per IP+user and 20 per IP in 15 minutes. The counters live in memory, so a restart resets them.
 
 ## License
 
